@@ -13,7 +13,6 @@ def show_cfg(cfg):
         dump_cfg.update({cfg.DISTILLER.TYPE: cfg.get(cfg.DISTILLER.TYPE)})
     print(log_msg("CONFIG:\n{}".format(dump_cfg.dump()), "INFO"))
 
-
 CFG = CN()
 
 # Experiment
@@ -38,7 +37,7 @@ CFG.DISTILLER.STUDENT = "resnet32"
 
 # Solver
 CFG.SOLVER = CN()
-CFG.SOLVER.TRAINER = "base"
+CFG.SOLVER.TRAINER = "scheduler"
 CFG.SOLVER.BATCH_SIZE = 64
 CFG.SOLVER.EPOCHS = 240
 CFG.SOLVER.LR = 0.05
@@ -47,6 +46,12 @@ CFG.SOLVER.LR_DECAY_RATE = 0.1
 CFG.SOLVER.WEIGHT_DECAY = 0.0001
 CFG.SOLVER.MOMENTUM = 0.9
 CFG.SOLVER.TYPE = "SGD"
+
+# Scheduler
+CFG.SCHEDULER = CN()
+CFG.SCHEDULER.INITIAL_TEMPERATURE = 4.0
+CFG.SCHEDULER.MIN_TEMPERATURE = 2.0
+CFG.SCHEDULER.MAX_TEMPERATURE = 4.0
 
 # Log
 CFG.LOG = CN()

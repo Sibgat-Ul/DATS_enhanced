@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ._base import Distiller
+from .base import Distiller
 
 def normalize(logit):
     mean = logit.mean(dim=-1, keepdims=True)
@@ -44,7 +44,6 @@ def _get_gt_mask(logits, target):
     mask = torch.zeros_like(logits).scatter_(1, target.unsqueeze(1), 1).bool()
     return mask
 
-
 def _get_other_mask(logits, target):
     target = target.reshape(-1)
     mask = torch.ones_like(logits).scatter_(1, target.unsqueeze(1), 0).bool()
@@ -77,6 +76,7 @@ class DKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
+
         loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
             logits_student,
             logits_teacher,
@@ -86,8 +86,10 @@ class DKD(Distiller):
             self.temperature,
             self.logit_stand,
         )
+
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
         }
+
         return logits_student, losses_dict

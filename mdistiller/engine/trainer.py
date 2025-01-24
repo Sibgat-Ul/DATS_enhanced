@@ -2,11 +2,16 @@ import os
 import time
 from tqdm import tqdm
 import torch
-import torch.nn as nn
+from torch.utils.data import DataLoader
 import torch.optim as optim
 from collections import OrderedDict
 import getpass
 from tensorboardX import SummaryWriter
+
+from yacs.config import CfgNode as CN
+
+import wandb
+
 from .utils import (
     AverageMeter,
     accuracy,
@@ -17,9 +22,18 @@ from .utils import (
     log_msg,
 )
 
+from mdistiller.distillers.base import Distiller
 
 class BaseTrainer(object):
-    def __init__(self, experiment_name, distiller, train_loader, val_loader, cfg):
+    def __init__(
+            self,
+            experiment_name: str,
+            distiller: Distiller,
+            train_loader: DataLoader,
+            val_loader: DataLoader,
+            cfg: CN
+    ):
+
         self.cfg = cfg
         self.distiller = distiller
         self.train_loader = train_loader
@@ -34,40 +48,50 @@ class BaseTrainer(object):
             os.makedirs(self.log_path)
         self.tf_writer = SummaryWriter(os.path.join(self.log_path, "train.events"))
 
+        if self.cfg.LOG.WANDB:
+            import wandb
+
     def init_optimizer(self, cfg):
         if cfg.SOLVER.TYPE == "SGD":
             optimizer = optim.SGD(
                 self.distiller.module.get_learnable_parameters(),
-                lr=cfg.SOLVER.LR,
-                momentum=cfg.SOLVER.MOMENTUM,
-                weight_decay=cfg.SOLVER.WEIGHT_DECAY,
+                lr=cfg.SOLVER.SGD.LR,
+                momentum=cfg.SOLVER.SGD.MOMENTUM,
+                weight_decay=cfg.SOLVER.SGD.WEIGHT_DECAY,
             )
+
+        if cfg.SOLVER.TYPE == "ADAM":
+            optimizer = optim.Adam(
+                self.distiller.module.get_learnable_parameters(),
+                lr=cfg.SOLVER.LR,
+                weight_decay=cfg.SOLVER.ADAM.WEIGHT_DECAY,
+                eps=cfg.SOLVER.ADAM.EPS,
+                betas=(0.9, 0.999),
+            )
+
         else:
             raise NotImplementedError(cfg.SOLVER.TYPE)
+
         return optimizer
 
-    def log(self, lr, epoch, log_dict):
+    def log(self, epoch, log_dict):
         # tensorboard log
         for k, v in log_dict.items():
             self.tf_writer.add_scalar(k, v, epoch)
-        self.tf_writer.flush()
-        # wandb log
-        if self.cfg.LOG.WANDB:
-            import wandb
 
-            wandb.log({"current lr": lr})
+        self.tf_writer.flush()
+
+        if self.cfg.LOG.WANDB:
             wandb.log(log_dict)
-        if log_dict["test_acc"] > self.best_acc:
-            self.best_acc = log_dict["test_acc"]
-            if self.cfg.LOG.WANDB:
-                wandb.run.summary["best_acc"] = self.best_acc
+            wandb.run.summary["best_acc"] = self.best_acc
+
         # worklog.txt
         with open(os.path.join(self.log_path, "worklog.txt"), "a") as writer:
             lines = [
                 "-" * 25 + os.linesep,
                 "epoch: {}".format(epoch) + os.linesep,
-                "lr: {:.6f}".format(float(lr)) + os.linesep,
             ]
+
             for k, v in log_dict.items():
                 lines.append("{}: {:.2f}".format(k, v) + os.linesep)
             lines.append("-" * 25 + os.linesep)
@@ -97,6 +121,7 @@ class BaseTrainer(object):
             "top1": AverageMeter(),
             "top5": AverageMeter(),
         }
+
         num_iter = len(self.train_loader)
         pbar = tqdm(range(num_iter))
 
@@ -121,7 +146,8 @@ class BaseTrainer(object):
                 "test_loss": test_loss,
             }
         )
-        self.log(lr, epoch, log_dict)
+
+        self.log(epoch, log_dict)
         # saving checkpoint
         state = {
             "epoch": epoch,
@@ -129,25 +155,32 @@ class BaseTrainer(object):
             "optimizer": self.optimizer.state_dict(),
             "best_acc": self.best_acc,
         }
+
         student_state = {"model": self.distiller.module.student.state_dict()}
         save_checkpoint(state, os.path.join(self.log_path, "latest"))
         save_checkpoint(
             student_state, os.path.join(self.log_path, "student_latest")
         )
+
         if epoch % self.cfg.LOG.SAVE_CHECKPOINT_FREQ == 0:
             save_checkpoint(
                 state, os.path.join(self.log_path, "epoch_{}".format(epoch))
             )
+
             save_checkpoint(
                 student_state,
                 os.path.join(self.log_path, "student_{}".format(epoch)),
             )
+
         # update the best
         if test_acc >= self.best_acc:
-            save_checkpoint(state, os.path.join(self.log_path, "best"))
-            save_checkpoint(
-                student_state, os.path.join(self.log_path, "student_best")
-            )
+            self.best_acc = test_acc
+
+            if test_acc >= 60.0:
+                save_checkpoint(state, os.path.join(self.log_path, "best"))
+                save_checkpoint(
+                    student_state, os.path.join(self.log_path, "student_best")
+                )
 
     def train_iter(self, data, epoch, train_meters):
         self.optimizer.zero_grad()
@@ -167,12 +200,14 @@ class BaseTrainer(object):
         loss.backward()
         self.optimizer.step()
         train_meters["training_time"].update(time.time() - train_start_time)
+
         # collect info
         batch_size = image.size(0)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5))
         train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
         train_meters["top1"].update(acc1[0], batch_size)
         train_meters["top5"].update(acc5[0], batch_size)
+
         # print info
         msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
             epoch,
@@ -182,8 +217,192 @@ class BaseTrainer(object):
             train_meters["top1"].avg,
             train_meters["top5"].avg,
         )
+
         return msg
 
+
+class DynamicTemperatureScheduler(BaseTrainer):
+    def __init__(
+        self,
+        experiment_name,
+        distiller,
+        train_loader,
+        val_loader,
+        cfg
+    ):
+        super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
+
+        self.current_temperature = cfg.SCHEDULER.INITIAL_TEMPERATURE
+        self.initial_temperature = cfg.SCHEDULER.INITIAL_TEMPERATURE
+        self.min_temperature = cfg.SCHEDULER.MIN_TEMPERATURE
+        self.max_temperature = cfg.SCHEDULER.MAX_TEMPERATURE
+        self.max_epoch = cfg.SOLVER.EPOCHS
+
+        try:
+            self.distiller.temperature = self.current_temperature
+            self.has_temp = True
+
+        except AttributeError as e:
+            self.has_temp = False
+            print(e)
+            print("Skipping Temperature Update")
+
+    def update_temperature(self, current_epoch, loss_divergence):
+
+        progress = torch.tensor(current_epoch / self.max_epoch)
+        cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
+        log_loss = torch.log(1 + torch.tensor(loss_divergence))
+        adaptive_scale = log_loss / (log_loss + 1)
+
+        if adaptive_scale > 1:
+            target_temperature = self.initial_temperature * cosine_factor * (1 + adaptive_scale)
+        else:
+            target_temperature = self.initial_temperature * cosine_factor
+
+        target_temperature = torch.clamp(
+            target_temperature,
+            self.min_temperature,
+            self.max_temperature
+        )
+
+        momentum = 0.9
+        self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
+
+        if self.has_temp:
+            self.distiller.temperature = self.current_temperature
+
+    def get_temperature(self):
+        """
+        Retrieve current temperature value.
+
+        Returns:
+            float: Current dynamic temperature.
+        """
+
+        return self.current_temperature
+
+    def train_epoch(self, epoch):
+        lr = adjust_learning_rate(epoch, self.cfg, self.optimizer)
+
+        train_meters = {
+            "training_time": AverageMeter(),
+            "data_time": AverageMeter(),
+            "losses": AverageMeter(),
+            "top1": AverageMeter(),
+            "temp": self.current_temperature,
+        }
+
+        num_iter = len(self.train_loader)
+        pbar = tqdm(range(num_iter))
+
+        # train loops
+        self.distiller.train()
+        for idx, data in enumerate(self.train_loader):
+            msg = self.train_iter(data, epoch, train_meters)
+            pbar.set_description(log_msg(msg, "TRAIN"))
+            pbar.update()
+        pbar.close()
+
+        # validate
+        test_acc, test_acc_top5, test_loss = validate(self.val_loader, self.distiller)
+
+        # log
+        log_dict = OrderedDict(
+            {
+                "train_acc": train_meters["top1"].avg,
+                "train_loss": train_meters["losses"].avg,
+                "test_acc": test_acc,
+                "test_loss": test_loss,
+                "temp": self.current_temperature,
+                "lr": lr
+            }
+        )
+
+        self.log(epoch, log_dict)
+        # saving checkpoint
+        state = {
+            "epoch": epoch,
+            "model": self.distiller.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "best_acc": self.best_acc,
+            "temp": self.current_temperature,
+        }
+
+        student_state = {"model": self.distiller.module.student.state_dict()}
+
+        save_checkpoint(state, os.path.join(self.log_path, "latest"))
+
+        save_checkpoint(
+            student_state, os.path.join(self.log_path, "student_latest")
+        )
+
+        if epoch % self.cfg.LOG.SAVE_CHECKPOINT_FREQ == 0:
+            save_checkpoint(
+                state, os.path.join(self.log_path, "epoch_{}".format(epoch))
+            )
+
+            save_checkpoint(
+                student_state,
+                os.path.join(self.log_path, "student_{}".format(epoch)),
+            )
+
+        # update the best
+        if test_acc >= self.best_acc:
+            self.best_acc = test_acc
+
+            if test_acc >= 60.0:
+                save_checkpoint(state, os.path.join(self.log_path, "best"))
+                save_checkpoint(
+                    student_state, os.path.join(self.log_path, "student_best")
+                )
+
+    def train_iter(self, data, epoch, train_meters):
+        train_start_time = time.time()
+
+        image, target, index = data
+
+        train_meters["data_time"].update(time.time() - train_start_time)
+        image = image.float()
+        image = image.cuda(non_blocking=True)
+        target = target.cuda(non_blocking=True)
+        index = index.cuda(non_blocking=True)
+
+        # forward
+        preds, losses_dict, loss_divergence = self.distiller(image=image, target=target, epoch=epoch)
+
+        # backward
+        loss = sum([l.mean() for l in losses_dict.values()])
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        self.update_temperature(
+            current_epoch = epoch,
+            loss_divergence = loss_divergence
+        )
+
+        train_meters["training_time"].update(time.time() - train_start_time)
+
+        # collect info
+        batch_size = image.size(0)
+        acc1, acc5 = accuracy(preds, target, topk=(1, 5))
+        train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
+        train_meters["top1"].update(acc1[0], batch_size)
+        train_meters["top5"].update(acc5[0], batch_size)
+
+        # print info
+        msg = "Epoch: {}/{} | Temp:{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
+            epoch,
+            self.max_epoch,
+            self.distiller.temperature,
+            train_meters["training_time"].avg,
+            train_meters["losses"].avg,
+            train_meters["top1"].avg,
+            train_meters["top5"].avg,
+        )
+
+        return msg
 
 class CRDTrainer(BaseTrainer):
     def train_iter(self, data, epoch, train_meters):
@@ -207,12 +426,14 @@ class CRDTrainer(BaseTrainer):
         loss.backward()
         self.optimizer.step()
         train_meters["training_time"].update(time.time() - train_start_time)
+
         # collect info
         batch_size = image.size(0)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5))
         train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
         train_meters["top1"].update(acc1[0], batch_size)
         train_meters["top5"].update(acc5[0], batch_size)
+
         # print info
         msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
             epoch,
@@ -222,6 +443,7 @@ class CRDTrainer(BaseTrainer):
             train_meters["top1"].avg,
             train_meters["top5"].avg,
         )
+
         return msg
 
 
@@ -234,6 +456,7 @@ class AugTrainer(BaseTrainer):
         image_weak, image_strong = image
         image_weak, image_strong = image_weak.float(), image_strong.float()
         image_weak, image_strong = image_weak.cuda(non_blocking=True), image_strong.cuda(non_blocking=True)
+
         target = target.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
 
@@ -245,12 +468,14 @@ class AugTrainer(BaseTrainer):
         loss.backward()
         self.optimizer.step()
         train_meters["training_time"].update(time.time() - train_start_time)
+
         # collect info
         batch_size = image_weak.size(0)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5))
         train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
         train_meters["top1"].update(acc1[0], batch_size)
         train_meters["top5"].update(acc5[0], batch_size)
+
         # print info
         msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
             epoch,
@@ -260,4 +485,5 @@ class AugTrainer(BaseTrainer):
             train_meters["top1"].avg,
             train_meters["top5"].avg,
         )
+
         return msg

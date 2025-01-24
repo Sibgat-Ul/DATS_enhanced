@@ -25,7 +25,6 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-
 def validate(val_loader, distiller):
     batch_time, losses, top1, top5 = [AverageMeter() for _ in range(4)]
     criterion = nn.CrossEntropyLoss()
@@ -57,7 +56,6 @@ def validate(val_loader, distiller):
             pbar.update()
     pbar.close()
     return top1.avg, top5.avg, losses.avg
-
 
 def validate_npy(val_loader, distiller):
     batch_time, losses, top1, top5 = [AverageMeter() for _ in range(4)]
@@ -103,7 +101,6 @@ def validate_npy(val_loader, distiller):
     pbar.close()
     return top1.avg, top5.avg, losses.avg, all_image, all_output, all_label
 
-
 def log_msg(msg, mode="INFO"):
     color_map = {
         "INFO": 36,
@@ -112,7 +109,6 @@ def log_msg(msg, mode="INFO"):
     }
     msg = "\033[{}m[{}] {}\033[0m".format(color_map[mode], mode, msg)
     return msg
-
 
 def adjust_learning_rate(epoch, cfg, optimizer):
     steps = np.sum(epoch > np.asarray(cfg.SOLVER.LR_DECAY_STAGES))
@@ -123,8 +119,7 @@ def adjust_learning_rate(epoch, cfg, optimizer):
         return new_lr
     return cfg.SOLVER.LR
 
-
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, topk=(1,5)):
     with torch.no_grad():
         maxk = max(topk)
         batch_size = target.size(0)
@@ -137,11 +132,9 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
-
 def save_checkpoint(obj, path):
     with open(path, "wb") as f:
         torch.save(obj, f)
-
 
 def load_checkpoint(path):
     with open(path, "rb") as f:

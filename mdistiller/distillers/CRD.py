@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 import math
 
-from ._base import Distiller
+from .base import Distiller
 
 
 class CRD(Distiller):

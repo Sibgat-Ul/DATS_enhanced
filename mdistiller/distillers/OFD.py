@@ -5,7 +5,7 @@ from scipy.stats import norm
 import numpy as np
 import math
 
-from ._base import Distiller
+from .base import Distiller
 
 
 def feat_loss(source, target, margin):

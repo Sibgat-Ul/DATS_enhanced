@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ._base import Distiller
+from .base import Distiller
 
 
 def sp_loss(g_s, g_t):

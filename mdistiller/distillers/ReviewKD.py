@@ -5,7 +5,7 @@ import torch.optim as optim
 import math
 import pdb
 
-from ._base import Distiller
+from .base import Distiller
 
 
 def hcl_loss(fstudent, fteacher):

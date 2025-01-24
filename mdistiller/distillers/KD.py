@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ._base import Distiller
+from .base import Distiller
 
 def normalize(logit):
     mean = logit.mean(dim=-1, keepdims=True)
@@ -31,16 +31,26 @@ class KD(Distiller):
 
     def forward_train(self, image, target, **kwargs):
         logits_student, _ = self.student(image)
+
         with torch.no_grad():
             logits_teacher, _ = self.teacher(image)
 
         # losses
-        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
+        student_loss = F.cross_entropy(logits_student, target)
+        teacher_loss = F.cross_entropy(logits_teacher, target)
+
+        loss_ce = self.ce_loss_weight * student_loss
         loss_kd = self.kd_loss_weight * kd_loss(
             logits_student, logits_teacher, self.temperature, self.logit_stand
         )
+
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
         }
+
+        if self.SOLVER.TRAINER == "scheduler":
+            loss_divergence = teacher_loss.item() - student_loss.item()
+            return loss_divergence, logits_student, losses_dict
+
         return logits_student, losses_dict

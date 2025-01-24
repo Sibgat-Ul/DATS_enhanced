@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -38,7 +37,6 @@ class Distiller(nn.Module):
         if self.training:
             return self.forward_train(**kwargs)
         return self.forward_test(kwargs["image"])
-
 
 class Vanilla(nn.Module):
     def __init__(self, student):

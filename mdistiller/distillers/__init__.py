@@ -1,4 +1,4 @@
-from ._base import Vanilla
+from .base import Vanilla
 from .KD import KD
 from .MLKD import MLKD
 from .AT import AT
@@ -14,6 +14,7 @@ from .Sonly import Sonly
 from .VID import VID
 from .ReviewKD import ReviewKD
 from .DKD import DKD
+from .LUMINET import Luminet
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -32,4 +33,5 @@ distiller_dict = {
     "VID": VID,
     "REVIEWKD": ReviewKD,
     "DKD": DKD,
+    "LUMINET": Luminet
 }

@@ -1,7 +1,8 @@
-from .trainer import BaseTrainer, CRDTrainer, AugTrainer
+from .trainer import BaseTrainer, CRDTrainer, AugTrainer, DynamicTemperatureScheduler
 
 trainer_dict = {
     "base": BaseTrainer,
     "crd": CRDTrainer,
-    "ours": AugTrainer
+    "ls": AugTrainer,
+    "scheduler": DynamicTemperatureScheduler,
 }

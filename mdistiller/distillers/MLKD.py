@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from ._base import Distiller
+from .base import Distiller
 from .loss import CrossEntropyLabelSmooth
 
 def normalize(logit):
