@@ -55,12 +55,12 @@ class BaseTrainer(object):
         if cfg.SOLVER.TYPE == "SGD":
             optimizer = optim.SGD(
                 self.distiller.module.get_learnable_parameters(),
-                lr=cfg.SOLVER.SGD.LR,
-                momentum=cfg.SOLVER.SGD.MOMENTUM,
-                weight_decay=cfg.SOLVER.SGD.WEIGHT_DECAY,
+                lr=cfg.SOLVER.LR,
+                momentum=cfg.SOLVER.MOMENTUM,
+                weight_decay=cfg.SOLVER.WEIGHT_DECAY,
             )
 
-        if cfg.SOLVER.TYPE == "ADAM":
+        elif cfg.SOLVER.TYPE == "ADAM":
             optimizer = optim.Adam(
                 self.distiller.module.get_learnable_parameters(),
                 lr=cfg.SOLVER.LR,

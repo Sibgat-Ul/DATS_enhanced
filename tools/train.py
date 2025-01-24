@@ -120,15 +120,16 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default="cifar100")
     parser.add_argument("--distiller_type", type=str, default="NONE")
 
-    parser.add_argument("--resume", type=str, default="")
+    parser.add_argument("--resume", type=bool, default=False)
 
-    parser.add_argument("--use_scheduler", action="store_true")
+    parser.add_argument("--use_scheduler", type=bool, default=False)
     parser.add_argument("--init_temperature", type=float, default=4.0)
     parser.add_argument("--min_temperature", type=float, default=2.0)
     parser.add_argument("--max_temperature", type=float, default=4.0)
 
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--lr", type=float, default=0.1)
 
     parser.add_argument("--logit-stand", action="store_true")
     parser.add_argument("--base-temp", type=float, default=2)

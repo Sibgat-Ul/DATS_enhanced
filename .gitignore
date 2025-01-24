@@ -15,3 +15,4 @@ logs/tiny-transformer/pvt-ti_c100_KD_ours_model_epoch_0268.pyth
 /tiny-transformers/data
 # paths to teacher weights, data, output for CTKD
 /CTKD/save
+git_pass.txt

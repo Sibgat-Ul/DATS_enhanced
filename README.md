@@ -1,31 +1,6 @@
-# [CVPR 2024 Highlight] Logit Standardization in Knowledge Distillation
-
-[![](https://img.shields.io/badge/project-page-red.svg)](https://sunsean21.github.io/logit-stand-KD.html) [![](https://img.shields.io/badge/arXiv-2403.01427-green.svg)](https://arxiv.org/abs/2403.01427)     [![](https://img.shields.io/badge/supplementary-material-purple)](https://sunsean21.github.io/resources/cvpr2024_supp.pdf)     [![](https://img.shields.io/badge/chinese_blog-zhihu-blue.svg)](https://zhuanlan.zhihu.com/p/688903391) [![Closed Issues](https://img.shields.io/github/issues-closed/sunshangquan/logit-standardization-KD)](https://github.com/sunshangquan/logit-standardization-KD/issues?q=is%3Aissue+is%3Aclosed) [![Open Issues](https://img.shields.io/github/issues/sunshangquan/logit-standardization-KD)](https://github.com/sunshangquan/logit-standardization-KD/issues) 
-
-### [[Project Page]](<https://sunsean21.github.io/logit-stand-KD.html>) [[arXiv]](<https://arxiv.org/abs/2403.01427>) [[Supplementary Materials]](<https://sunsean21.github.io/resources/cvpr2024_supp.pdf>) [[Zhihu (in Chinese)]](<https://zhuanlan.zhihu.com/p/688903391>) 
-
-<img src=.github/1_1-1.png width=50% />  |  <img src=.github/2_2-1.png width=50% />
-:-------------------------:|:-------------------------:
-Vanilla KD             |  KD w/ our logit standardization
-
-## Abstract
-
-Knowledge distillation involves transferring soft labels from a teacher to a student using a shared temperature-based softmax function. However, the assumption of a shared temperature between teacher and student implies a mandatory exact match between their logits in terms of logit range and variance. This side-effect limits the performance of student, considering the capacity discrepancy between them and the finding that the innate logit relations of teacher are sufficient for student to learn. To address this issue, we propose setting the temperature as the weighted standard deviation of logit and performing a plug-and-play Z-score pre-process of logit standardization before applying softmax and Kullback-Leibler divergence. Our pre-process enables student to focus on essential logit relations from teacher rather than requiring a magnitude match, and can improve the performance of existing logit-based distillation methods. We also show a typical case where the conventional setting of sharing temperature between teacher and student cannot reliably yield the authentic distillation evaluation; nonetheless, this challenge is successfully alleviated by our Z-score. We extensively evaluate our method for various student and teacher models on CIFAR-100 and ImageNet, showing its significant superiority. The vanilla knowledge distillation powered by our pre-process can achieve favorable performance against state-of-the-art methods, and other distillation variants can obtain considerable gain with the assistance of our pre-process.
-
-## :tada: News 
-
-2024.4: Selected as Highlight in CVPR 2024 
-
-2024.3: Release the code and arXiv
-
-2024.2: Accepted by CVPR 2024 
-
-2023.7: Rejected by ICCV 2023 
-
 ## Usage
 
 The code is built on [mdistiller](<https://github.com/megvii-research/mdistiller>), [Multi-Level-Logit-Distillation](<https://github.com/Jin-Ying/Multi-Level-Logit-Distillation>), [CTKD](<https://github.com/zhengli97/CTKD>) and [tiny-transformers](<https://github.com/lkhl/tiny-transformers>).
-
 
 ### Installation
 
