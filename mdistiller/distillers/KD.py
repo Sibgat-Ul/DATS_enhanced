@@ -27,7 +27,8 @@ class KD(Distiller):
         self.temperature = cfg.KD.TEMPERATURE
         self.ce_loss_weight = cfg.KD.LOSS.CE_WEIGHT
         self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
-        self.logit_stand = cfg.EXPERIMENT.LOGIT_STAND 
+        self.logit_stand = cfg.EXPERIMENT.LOGIT_STAND
+        self.cfg = cfg
 
     def forward_train(self, image, target, **kwargs):
         logits_student, _ = self.student(image)
@@ -49,8 +50,8 @@ class KD(Distiller):
             "loss_kd": loss_kd,
         }
 
-        if self.SOLVER.TRAINER == "scheduler":
+        if self.cfg.SOLVER.TRAINER == "scheduler":
             loss_divergence = teacher_loss.item() - student_loss.item()
-            return loss_divergence, logits_student, losses_dict
+            return logits_student, losses_dict, loss_divergence
 
         return logits_student, losses_dict

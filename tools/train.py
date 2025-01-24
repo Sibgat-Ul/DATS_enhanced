@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--resume", type=bool, default=False)
 
-    parser.add_argument("--use_scheduler", type=bool, default=False)
+    parser.add_argument("--use_scheduler", action="store_true")
     parser.add_argument("--init_temperature", type=float, default=4.0)
     parser.add_argument("--min_temperature", type=float, default=2.0)
     parser.add_argument("--max_temperature", type=float, default=4.0)
