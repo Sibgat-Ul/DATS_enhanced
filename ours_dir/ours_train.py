@@ -5,7 +5,7 @@ import numpy as np
 import torchvision
 from torchvision import transforms
 from ours_utils.Distiller import DynamicTemperatureScheduler
-from ours_dir.models import model_dict as cifar_model_dict
+from models import model_dict as cifar_model_dict
 
 dtkd_losses = []
 dtkd_accuracies = []
