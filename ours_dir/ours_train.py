@@ -319,7 +319,6 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp_name", type=str, default="ours_train")
-    parser.add_argument("--teacher_dir", type=str, default="/kaggle/input/cifar_teachers/pytorch/default/1/cifar_teachers/")
     parser.add_argument("--key", type=str, required=True)
     parser.add_argument("--teacher", type=str, default="resnet32x4")
     parser.add_argument("--student", type=str, default="resnet8x4")
