@@ -10,6 +10,5 @@ if __name__ == "__main__":
         name=DISTNAME,
         packages=setuptools.find_packages(),
         version="0.1",
-        description=DESCRIPTION,
         long_description_content_type="text/markdown",
     )
