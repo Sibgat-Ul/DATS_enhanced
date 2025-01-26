@@ -1,9 +1,105 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import numpy as np
+
+def normalize(logit):
+    mean = logit.mean(dim=-1, keepdims=True)
+    stdv = logit.std(dim=-1, keepdims=True)
+    return (logit - mean) / (1e-7 + stdv)
+
+def _get_gt_mask(logits, target):
+    target = target.reshape(-1)
+    mask = torch.zeros_like(logits).scatter_(1, target.unsqueeze(1), 1).bool()
+    return mask
+
+def _get_other_mask(logits, target):
+    target = target.reshape(-1)
+    mask = torch.ones_like(logits).scatter_(1, target.unsqueeze(1), 0).bool()
+    return mask
+
+def cat_mask(t, mask1, mask2):
+    t1 = (t * mask1).sum(dim=1, keepdims=True)
+    t2 = (t * mask2).sum(1, keepdims=True)
+    rt = torch.cat([t1, t2], dim=1)
+    return rt
+
+
+def normalize(logit):
+    mean = logit.mean(dim=-1, keepdims=True)
+    stdv = logit.std(dim=-1, keepdims=True)
+    return (logit - mean) / (1e-7 + stdv)
+
+def kd_loss(logits_student_in, logits_teacher_in, temperature, reduce=True, logit_stand=False):
+    logits_student = normalize(logits_student_in) if logit_stand else logits_student_in
+    logits_teacher = normalize(logits_teacher_in) if logit_stand else logits_teacher_in
+
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    if reduce:
+        loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    else:
+        loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1)
+    loss_kd *= temperature**2
+    return loss_kd
+
+
+def cc_loss(logits_student, logits_teacher, temperature, reduce=True):
+    batch_size, class_num = logits_teacher.shape
+    pred_student = F.softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    student_matrix = torch.mm(pred_student.transpose(1, 0), pred_student)
+    teacher_matrix = torch.mm(pred_teacher.transpose(1, 0), pred_teacher)
+    if reduce:
+        consistency_loss = ((teacher_matrix - student_matrix) ** 2).sum() / class_num
+    else:
+        consistency_loss = ((teacher_matrix - student_matrix) ** 2) / class_num
+    return consistency_loss
+
+
+def bc_loss(logits_student, logits_teacher, temperature, reduce=True):
+    batch_size, class_num = logits_teacher.shape
+    pred_student = F.softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    student_matrix = torch.mm(pred_student, pred_student.transpose(1, 0))
+    teacher_matrix = torch.mm(pred_teacher, pred_teacher.transpose(1, 0))
+    if reduce:
+        consistency_loss = ((teacher_matrix - student_matrix) ** 2).sum() / batch_size
+    else:
+        consistency_loss = ((teacher_matrix - student_matrix) ** 2) / batch_size
+    return consistency_loss
+
+
+def mixup_data(x, y, alpha=1.0, use_cuda=True):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1
+
+    batch_size = x.size()[0]
+    if use_cuda:
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
+
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+
+def mixup_data_conf(x, y, lam, use_cuda=True):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    lam = lam.reshape(-1,1,1,1)
+    batch_size = x.size()[0]
+    if use_cuda:
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
+
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
 
 class LossManager:
     def __init__(
@@ -12,13 +108,15 @@ class LossManager:
             beta,
             gamma,
             initial_temperature,
-            min_temperature
+            min_temperature,
+            logit_stand
     ):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
         self.current_temperature = initial_temperature
         self.min_temperature = min_temperature
+
 
     def normalize(self, logit):
         mean = logit.mean(dim=-1, keepdims=True)
@@ -29,8 +127,8 @@ class LossManager:
     def kd_loss(self, logits_student_in, logits_teacher_in, logit_stand=True):
         temperature = self.current_temperature
 
-        logits_student = self.normalize(logits_student_in)
-        logits_teacher = self.normalize(logits_teacher_in)
+        logits_student = normalize(logits_student_in) if logit_stand else logits_student_in
+        logits_teacher = normalize(logits_teacher_in) if logit_stand else logits_teacher_in
         log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
 
         pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
@@ -157,6 +255,36 @@ class LossManager:
         rmse_loss = self.gamma * self.rmse_loss(student_logits, teacher_logits)
         return cosine_loss + rmse_loss
 
+    def dkd_loss(self, logits_student_in, logits_teacher_in, target, alpha, beta, logit_stand=True):
+        logits_student = normalize(logits_student_in) if logit_stand else logits_student_in
+        logits_teacher = normalize(logits_teacher_in) if logit_stand else logits_teacher_in
+        temperature = self.current_temperature
+
+        gt_mask = _get_gt_mask(logits_student, target)
+        other_mask = _get_other_mask(logits_student, target)
+        pred_student = F.softmax(logits_student / temperature, dim=1)
+        pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+        pred_student = cat_mask(pred_student, gt_mask, other_mask)
+        pred_teacher = cat_mask(pred_teacher, gt_mask, other_mask)
+        log_pred_student = torch.log(pred_student)
+        tckd_loss = (
+                F.kl_div(log_pred_student, pred_teacher, size_average=False)
+                * (temperature ** 2)
+                / target.shape[0]
+        )
+        pred_teacher_part2 = F.softmax(
+            logits_teacher / temperature - 1000.0 * gt_mask, dim=1
+        )
+        log_pred_student_part2 = F.log_softmax(
+            logits_student / temperature - 1000.0 * gt_mask, dim=1
+        )
+        nckd_loss = (
+                F.kl_div(log_pred_student_part2, pred_teacher_part2, size_average=False)
+                * (temperature ** 2)
+                / target.shape[0]
+        )
+        return alpha * tckd_loss + beta * nckd_loss
+
 class DynamicTemperatureScheduler(nn.Module):
     """
     Dynamic Temperature Scheduler for Knowledge Distillation.
@@ -182,6 +310,7 @@ class DynamicTemperatureScheduler(nn.Module):
             alpha=0.5,
             beta=0.9,
             gamma=0.5,
+            logit_stand=True
     ):
         super(DynamicTemperatureScheduler, self).__init__()
 
@@ -191,23 +320,17 @@ class DynamicTemperatureScheduler(nn.Module):
         self.max_temperature = max_temperature
         self.max_epoch = max_epoch
         self.warmup = warmup
-
-        # Tracking training dynamics
-        self.loss_history = []
-        self.student_loss = []
-
+        self.logit_stand = logit_stand
         # Constants for importance
         self.loss_manager = LossManager(
             alpha,
             beta,
             gamma,
             initial_temperature,
-            min_temperature
+            min_temperature,
+            logit_stand
         )
 
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
 
     def update_temperature(self, current_epoch, loss_divergence):
         progress = torch.tensor(current_epoch / self.max_epoch)
@@ -241,7 +364,7 @@ class DynamicTemperatureScheduler(nn.Module):
 
         return self.current_temperature
 
-    def forward(self, epoch, student_logits, teacher_logits, outputs, loss_type="kd++"):
+    def forward(self, epoch, student_logits, teacher_logits, outputs, loss_type="kd"):
         """
         Forward pass to compute the loss based on the specified loss type.
 
@@ -253,53 +376,9 @@ class DynamicTemperatureScheduler(nn.Module):
         Returns:
             torch.Tensor: Computed loss.
         """
-        if loss_type == "ours":
-            temp_ratio = (self.current_temperature - 1.0) / (3.0 - 1.0)
-            temp_ratio = max(0, min(1, temp_ratio))
+        warmup = 1 if self.warmup is None else min(epoch / self.warmup, 1.0)
 
-            # Base losses (always present)
-            soft_loss = self.loss_manager.soft_distillation_loss(
-                student_logits,
-                teacher_logits
-            )
-
-            hard_loss = self.loss_manager.hard_loss(
-                student_logits,
-                outputs
-            )
-
-            teacher_loss = self.loss_manager.hard_loss(
-                teacher_logits,
-                outputs
-            )
-
-            # Temperature-dependent weighting for soft vs hard
-            if self.current_temperature > 1:
-                soft_weight = self.alpha * temp_ratio + 0.4 * (1 - temp_ratio)
-                hard_weight = (1 - self.alpha) * temp_ratio + 0.5 * (1 - temp_ratio)
-            else:
-                soft_weight = 0.2
-                hard_weight = 0.5
-
-            # Additional losses only when temperature is higher
-            additional_losses = temp_ratio * self.loss_manager.combined_loss(
-                student_logits,
-                teacher_logits,
-                outputs
-            )
-
-            warmup = 1 if self.warmup == None else min(epoch / self.warmup, 1.0)
-
-            total_loss = (
-                    soft_weight * soft_loss +
-                    hard_weight * hard_loss +
-                    additional_losses
-            )
-
-            return warmup * total_loss
-
-        elif loss_type == "luminet":
-            warmup = 1 if self.warmup == None else min(epoch / self.warmup, 1.0)
+        if loss_type == "luminet":
 
             loss_ce = (2.0) * F.cross_entropy(
                 student_logits,
@@ -319,7 +398,7 @@ class DynamicTemperatureScheduler(nn.Module):
 
             return sum([l.mean() for l in losses_dict.values()])
 
-        elif loss_type == "kd++":
+        elif loss_type == "kd":
             logits_student = student_logits
             logits_teacher = teacher_logits
 
@@ -327,13 +406,38 @@ class DynamicTemperatureScheduler(nn.Module):
 
             loss_ce = 0.1 * F.cross_entropy(logits_student, target)
 
-            loss_kd = 9 * self.loss_manager.kd_loss(
-                logits_student, logits_teacher
+            loss_kd = warmup * 9 * self.loss_manager.kd_loss(
+                logits_student, logits_teacher, self.logit_stand
             )
 
             losses_dict = {
                 "loss_ce": loss_ce,
                 "loss_kd": loss_kd,
+            }
+
+            return sum([l.mean() for l in losses_dict.values()])
+
+        elif loss_type == "dkd":
+            logits_student = student_logits
+            logits_teacher = teacher_logits
+
+            target = outputs
+
+            # losses
+            loss_ce = 1.0 * F.cross_entropy(logits_student, target)
+
+            loss_dkd = warmup * self.loss_manager.dkd_loss(
+                logits_student,
+                logits_teacher,
+                target,
+                1.0,
+                8.0,
+                self.logit_stand
+            )
+
+            losses_dict = {
+                "loss_ce": loss_ce,
+                "loss_kd": loss_dkd,
             }
 
             return sum([l.mean() for l in losses_dict.values()])

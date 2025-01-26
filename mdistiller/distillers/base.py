@@ -1,7 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class Distiller(nn.Module):
     def __init__(self, student, teacher):
         super(Distiller, self).__init__()

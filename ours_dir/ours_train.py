@@ -178,7 +178,7 @@ def train_knowledge_distillation(
         train_acc_1 /= len(train_loader)
         train_acc_5 /= len(train_loader)
 
-        if scheduler != None:
+        if scheduler is None:
             scheduler.step()
             lr = scheduler.get_last_lr()[0]
 

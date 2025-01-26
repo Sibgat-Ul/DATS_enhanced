@@ -13,14 +13,12 @@ def get_data_folder():
         os.makedirs(data_folder)
     return data_folder
 
-
 class CIFAR100Instance(datasets.CIFAR100):
     """CIFAR100Instance Dataset."""
 
     def __getitem__(self, index):
         img, target = super().__getitem__(index)
         return img, target, index
-
 
 # CIFAR-100 for CRD
 class CIFAR100InstanceSample(datasets.CIFAR100):
@@ -140,25 +138,20 @@ class MultipleApply:
     def __call__(self, image):
         return [t(image) for t in self.transforms]
 
-
 def AutoContrast(img, _):
     return ImageOps.autocontrast(img)
-
 
 def Brightness(img, v):
     assert v >= 0.0
     return ImageEnhance.Brightness(img).enhance(v)
 
-
 def Color(img, v):
     assert v >= 0.0
     return ImageEnhance.Color(img).enhance(v)
 
-
 def Contrast(img, v):
     assert v >= 0.0
     return ImageEnhance.Contrast(img).enhance(v)
-
 
 def Equalize(img, _):
     return ImageOps.equalize(img)
@@ -354,26 +347,34 @@ def get_cifar100_test_transform():
 
 def get_cifar100_dataloaders(batch_size, val_batch_size, num_workers):
     data_folder = get_data_folder()
-    train_transform = get_cifar100_train_transform()
-    test_transform = get_cifar100_test_transform()
-    train_set = CIFAR100Instance(
-        root=data_folder, download=True, train=True, transform=train_transform
-    )
-    num_data = len(train_set)
-    test_set = datasets.CIFAR100(
-        root=data_folder, download=True, train=False, transform=test_transform
-    )
+
+    train_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32, padding=4),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))  # Mean and std of CIFAR-10
+    ])
+
+    val_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+    ])
+
+    train_dataset = datasets.CIFAR100(root=data_folder, train=True, transform=train_transform, download=True)
+    val_dataset = datasets.CIFAR100(root=data_folder, train=False, transform=val_transform, download=True)
+    num_classes = len(train_dataset.classes)
 
     train_loader = DataLoader(
-        train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
     )
+
     test_loader = DataLoader(
-        test_set,
+        val_dataset,
         batch_size=val_batch_size,
         shuffle=False,
         num_workers=1,
     )
-    return train_loader, test_loader, num_data
+    return train_loader, test_loader, num_classes
 
 
 def get_cifar100_dataloaders_strong(batch_size, val_batch_size, num_workers):
@@ -391,6 +392,7 @@ def get_cifar100_dataloaders_strong(batch_size, val_batch_size, num_workers):
     train_loader = DataLoader(
         train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers
     )
+
     test_loader = DataLoader(
         test_set,
         batch_size=val_batch_size,
