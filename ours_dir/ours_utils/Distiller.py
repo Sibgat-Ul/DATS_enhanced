@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ours_dir.ours_utils.LossManager import LossManager
+from LossManager import LossManager
 
 class DynamicTemperatureScheduler(nn.Module):
     """
