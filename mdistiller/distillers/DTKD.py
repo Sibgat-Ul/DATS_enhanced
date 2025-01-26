@@ -29,6 +29,7 @@ class DTKD(Distiller):
             F.log_softmax(logits_student / logits_student_temp, dim=1),  # 学生
             F.softmax(logits_teacher / logits_teacher_temp, dim=1)  # 老师
         )
+
         loss_ourskd = (ourskd.sum(1, keepdim=True) * logits_teacher_temp * logits_student_temp).mean()
 
         # Vanilla KD Loss

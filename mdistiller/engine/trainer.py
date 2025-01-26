@@ -237,9 +237,10 @@ class DynamicTemperatureScheduler(BaseTrainer):
         self.min_temperature = cfg.SCHEDULER.MIN_TEMPERATURE
         self.max_temperature = cfg.SCHEDULER.MAX_TEMPERATURE
         self.max_epoch = cfg.SOLVER.EPOCHS
+        self.has_temp = True
 
         try:
-            self.distiller.temperature = self.current_temperature
+            self.distiller.temperature = cfg.SCHEDULER.INITIAL_TEMPERATURE
             self.has_temp = True
 
         except AttributeError as e:
