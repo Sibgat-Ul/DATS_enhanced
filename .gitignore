@@ -18,3 +18,5 @@ logs/tiny-transformer/pvt-ti_c100_KD_ours_model_epoch_0268.pyth
 git_pass.txt
 __pycache__
 /logs
+mdistiller.egg-info
+logs/tiny-transformer/
