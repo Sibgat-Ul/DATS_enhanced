@@ -67,7 +67,8 @@ class DKD(Distiller):
         self.beta = cfg.DKD.BETA
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
-        self.logit_stand = cfg.EXPERIMENT.LOGIT_STAND 
+        self.logit_stand = cfg.EXPERIMENT.LOGIT_STAND
+        self.cfg = cfg
 
     def forward_train(self, image, target, **kwargs):
         logits_student, _ = self.student(image)
@@ -75,7 +76,7 @@ class DKD(Distiller):
             logits_teacher, _ = self.teacher(image)
 
         teacher_loss = F.cross_entropy(logits_teacher, target)
-        student_loss = F.mse_loss(logits_student, target)
+        student_loss = F.cross_entropy(logits_student, target)
 
         # losses
         loss_ce = self.ce_loss_weight * student_loss
