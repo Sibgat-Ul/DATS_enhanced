@@ -42,11 +42,16 @@ class DTKD(Distiller):
 
         # CrossEntropy Loss
         loss_ce = nn.CrossEntropyLoss()(logits_student, target)
+        teacher_loss = F.cross_entropy(logits_teacher, target)
 
         loss_dtkd = min(kwargs["epoch"] / self.warmup, 1.0) * (
                     self.alpha * loss_ourskd + self.beta * loss_kd) + self.ce_loss_weight * loss_ce
         losses_dict = {
             "loss_dtkd": loss_dtkd,
         }
+
+        if self.cfg.SOLVER.TRAINER == "scheduler":
+            loss_divergence = teacher_loss.item() - loss_ce.item()
+            return logits_student, losses_dict, loss_divergence
 
         return logits_student, losses_dict
