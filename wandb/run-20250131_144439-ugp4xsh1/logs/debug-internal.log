@@ -1,0 +1,15 @@
+{"time":"2025-01-31T14:44:40.012241797+06:00","level":"INFO","msg":"stream: starting","core version":"0.19.4","symlink path":"/home/sibyz/PycharmProjects/DATS_enhanced/wandb/run-20250131_144439-ugp4xsh1/logs/debug-core.log"}
+{"time":"2025-01-31T14:44:40.114656552+06:00","level":"INFO","msg":"created new stream","id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:40.114688731+06:00","level":"INFO","msg":"stream: started","id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:40.114723161+06:00","level":"INFO","msg":"sender: started","stream_id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:40.114716381+06:00","level":"INFO","msg":"writer: Do: started","stream_id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:40.114747621+06:00","level":"INFO","msg":"handler: started","stream_id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:40.600618544+06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-31T14:44:45.225114714+06:00","level":"INFO","msg":"stream: closing","id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:45.225130614+06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-31T14:44:45.225553492+06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-31T14:44:46.212052937+06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-31T14:44:46.694325821+06:00","level":"INFO","msg":"handler: closed","stream_id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:46.694356491+06:00","level":"INFO","msg":"writer: Close: closed","stream_id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:46.69441027+06:00","level":"INFO","msg":"sender: closed","stream_id":"ugp4xsh1"}
+{"time":"2025-01-31T14:44:46.69442022+06:00","level":"INFO","msg":"stream: closed","id":"ugp4xsh1"}

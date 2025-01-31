@@ -242,7 +242,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
         self.adjust_temp = cfg.SOLVER.ADJUST_TEMPERATURE
 
         try:
-            self.distiller.temperature = cfg.SOLVER.INIT_TEMPERATURE
+            self.distiller.module.temperature = cfg.SOLVER.INIT_TEMPERATURE
             self.has_temp = True
 
         except AttributeError as e:
@@ -258,7 +258,10 @@ class DynamicTemperatureScheduler(BaseTrainer):
         if self.adjust_temp is True:
             log_loss = torch.log(1 + torch.tensor(loss_divergence))
             adaptive_scale = log_loss / (log_loss + 1)
-            target_temperature = self.initial_temperature * cosine_factor * (1 + adaptive_scale)
+            if adaptive_scale > 1:
+                target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
+            else:
+                target_temperature = self.initial_temperature * cosine_factor
         else:
             target_temperature = self.initial_temperature * cosine_factor
 
@@ -272,7 +275,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
         self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
 
         if self.has_temp:
-            self.distiller.temperature = self.current_temperature
+            self.distiller.module.temperature = self.current_temperature
 
     def get_temperature(self):
         """
@@ -316,7 +319,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
                 "train_loss": train_meters["losses"].avg,
                 "test_acc": test_acc,
                 "test_loss": test_loss,
-                "temp": self.current_temperature,
+                "temp": self.distiller.module.temperature,
                 "lr": lr
             }
         )
@@ -392,7 +395,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
         msg = "Epoch: {}/{} | Temp:{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}".format(
             epoch,
             self.max_epoch,
-            self.distiller.temperature,
+            self.distiller.module.temperature,
             train_meters["training_time"].avg,
             train_meters["losses"].avg,
             train_meters["top1"].avg,

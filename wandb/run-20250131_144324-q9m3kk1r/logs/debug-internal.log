@@ -1,0 +1,15 @@
+{"time":"2025-01-31T14:43:25.130512266+06:00","level":"INFO","msg":"stream: starting","core version":"0.19.4","symlink path":"/home/sibyz/PycharmProjects/DATS_enhanced/wandb/run-20250131_144324-q9m3kk1r/logs/debug-core.log"}
+{"time":"2025-01-31T14:43:25.233759577+06:00","level":"INFO","msg":"created new stream","id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:25.233792277+06:00","level":"INFO","msg":"stream: started","id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:25.233814467+06:00","level":"INFO","msg":"handler: started","stream_id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:25.233814457+06:00","level":"INFO","msg":"writer: Do: started","stream_id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:25.233839107+06:00","level":"INFO","msg":"sender: started","stream_id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:25.779903031+06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-31T14:43:44.839696809+06:00","level":"INFO","msg":"stream: closing","id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:44.839721189+06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-31T14:43:44.840158837+06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-31T14:43:46.503626985+06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-31T14:43:46.935182581+06:00","level":"INFO","msg":"handler: closed","stream_id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:46.935197051+06:00","level":"INFO","msg":"writer: Close: closed","stream_id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:46.935201211+06:00","level":"INFO","msg":"sender: closed","stream_id":"q9m3kk1r"}
+{"time":"2025-01-31T14:43:46.935253861+06:00","level":"INFO","msg":"stream: closed","id":"q9m3kk1r"}
