@@ -109,7 +109,7 @@ class BaseTrainer(object):
             self.train_epoch(epoch)
             epoch += 1
         print(log_msg("Best accuracy:{}".format(self.best_acc), "EVAL"))
-        with open(os.path.join(self.log_path, "worklog.txt"), "a") as writer:
+        with open(os.path.join(self.log_path, f"worklog_{self.cfg.SOLVER.TRAINER}.txt"), "a") as writer:
             writer.write("best_acc\t" + "{:.2f}".format(float(self.best_acc)))
 
     def train_epoch(self, epoch):
@@ -142,8 +142,9 @@ class BaseTrainer(object):
                 "train_acc": train_meters["top1"].avg,
                 "train_loss": train_meters["losses"].avg,
                 "test_acc": test_acc,
-                "test_acc_top5": test_acc_top5,
                 "test_loss": test_loss,
+                "temp": self.distiller.module.temperature,
+                "lr": lr
             }
         )
 
@@ -232,15 +233,16 @@ class DynamicTemperatureScheduler(BaseTrainer):
     ):
         super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
 
-        self.current_temperature = cfg.SCHEDULER.INITIAL_TEMPERATURE
-        self.initial_temperature = cfg.SCHEDULER.INITIAL_TEMPERATURE
-        self.min_temperature = cfg.SCHEDULER.MIN_TEMPERATURE
-        self.max_temperature = cfg.SCHEDULER.MAX_TEMPERATURE
+        self.current_temperature = cfg.SOLVER.INIT_TEMPERATURE
+        self.initial_temperature = cfg.SOLVER.INIT_TEMPERATURE
+        self.min_temperature = cfg.SOLVER.MIN_TEMPERATURE
+        self.max_temperature = cfg.SOLVER.MAX_TEMPERATURE
         self.max_epoch = cfg.SOLVER.EPOCHS
         self.has_temp = True
+        self.adjust_temp = cfg.SOLVER.ADJUST_TEMPERATURE
 
         try:
-            self.distiller.temperature = cfg.SCHEDULER.INITIAL_TEMPERATURE
+            self.distiller.temperature = cfg.SOLVER.INIT_TEMPERATURE
             self.has_temp = True
 
         except AttributeError as e:
@@ -252,10 +254,10 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
         progress = torch.tensor(current_epoch / self.max_epoch)
         cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
-        log_loss = torch.log(1 + torch.tensor(loss_divergence))
-        adaptive_scale = log_loss / (log_loss + 1)
 
-        if adaptive_scale > 1:
+        if self.adjust_temp is True:
+            log_loss = torch.log(1 + torch.tensor(loss_divergence))
+            adaptive_scale = log_loss / (log_loss + 1)
             target_temperature = self.initial_temperature * cosine_factor * (1 + adaptive_scale)
         else:
             target_temperature = self.initial_temperature * cosine_factor
@@ -446,7 +448,8 @@ class CRDTrainer(BaseTrainer):
         return msg
 
 
-class DynamicAugTrainer(DynamicTemperatureScheduler):
+
+class AugTrainer(BaseTrainer):
     def train_iter(self, data, epoch, train_meters):
         self.optimizer.zero_grad()
         train_start_time = time.time()
@@ -488,7 +491,7 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
         return msg
 
 
-class AugTrainer(BaseTrainer):
+class DynamicAugTrainer(DynamicTemperatureScheduler):
     def train_iter(self, data, epoch, train_meters):
         self.optimizer.zero_grad()
         train_start_time = time.time()

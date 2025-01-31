@@ -1,0 +1,15 @@
+{"time":"2025-01-31T11:17:05.219826883+06:00","level":"INFO","msg":"stream: starting","core version":"0.19.4","symlink path":"/home/sibyz/PycharmProjects/DATS_enhanced/wandb/run-20250131_111704-583yirac/logs/debug-core.log"}
+{"time":"2025-01-31T11:17:05.322713714+06:00","level":"INFO","msg":"created new stream","id":"583yirac"}
+{"time":"2025-01-31T11:17:05.322747434+06:00","level":"INFO","msg":"stream: started","id":"583yirac"}
+{"time":"2025-01-31T11:17:05.322776683+06:00","level":"INFO","msg":"writer: Do: started","stream_id":"583yirac"}
+{"time":"2025-01-31T11:17:05.322787533+06:00","level":"INFO","msg":"sender: started","stream_id":"583yirac"}
+{"time":"2025-01-31T11:17:05.322791373+06:00","level":"INFO","msg":"handler: started","stream_id":"583yirac"}
+{"time":"2025-01-31T11:17:06.298163761+06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-31T11:38:58.182768182+06:00","level":"INFO","msg":"stream: closing","id":"583yirac"}
+{"time":"2025-01-31T11:38:58.182789432+06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-31T11:38:58.183192491+06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-31T11:38:59.735687088+06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-31T11:39:00.195525894+06:00","level":"INFO","msg":"handler: closed","stream_id":"583yirac"}
+{"time":"2025-01-31T11:39:00.195556314+06:00","level":"INFO","msg":"writer: Close: closed","stream_id":"583yirac"}
+{"time":"2025-01-31T11:39:00.195589594+06:00","level":"INFO","msg":"sender: closed","stream_id":"583yirac"}
+{"time":"2025-01-31T11:39:00.195614054+06:00","level":"INFO","msg":"stream: closed","id":"583yirac"}

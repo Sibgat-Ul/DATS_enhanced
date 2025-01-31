@@ -1,0 +1,46 @@
+{
+  "os": "Linux-6.12.10-200.fc41.x86_64-x86_64-with-glibc2.40",
+  "python": "CPython 3.12.8",
+  "startedAt": "2025-01-31T07:03:47.590543Z",
+  "args": [
+    "--cfg",
+    "configs/cifar100/dkd/resnet56_resnet20.yaml"
+  ],
+  "program": "/home/sibyz/PycharmProjects/DATS_enhanced/tools/train.py",
+  "codePath": "tools/train.py",
+  "git": {
+    "remote": "https://github.com/Sibgat-Ul/DATS_enhanced",
+    "commit": "1d6456cdf3a49a203e0114edcae4009dc0d7b8a4"
+  },
+  "email": "sibgatulislam@gmail.com",
+  "root": "/home/sibyz/PycharmProjects/DATS_enhanced",
+  "host": "ultramarine",
+  "executable": "/home/sibyz/miniconda3/envs/pt/bin/python",
+  "codePathLocal": "tools/train.py",
+  "cpu_count": 8,
+  "cpu_count_logical": 16,
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "765432168448",
+      "used": "34642440192"
+    }
+  },
+  "memory": {
+    "total": "16676839424"
+  },
+  "cpu": {
+    "count": 8,
+    "countLogical": 16
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 3060",
+      "memoryTotal": "12884901888",
+      "cudaCores": 3584,
+      "architecture": "Ampere"
+    }
+  ],
+  "cudaVersion": "12.7"
+}

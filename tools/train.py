@@ -32,7 +32,8 @@ def main(cfg, resume, opts):
 
     if cfg.LOG.WANDB:
         try:
-            wandb.init(project=cfg.EXPERIMENT.PROJECT, name=cfg.EXPERIMENT.NAME, tags=tags)
+            wandb.login(key="9d5a8aab3348b03e43147ae4735979a983a3e7b0")
+            wandb.init(project=cfg.EXPERIMENT.PROJECT, name=f"{tags} + {cfg.SOLVER.TRAINER} + {cfg.EXPERIMENT.LOGIT_STAND}", tags=tags)
 
         except:
             print(log_msg("Failed to use WANDB", "INFO"))
@@ -126,15 +127,16 @@ if __name__ == "__main__":
     parser.add_argument("--init_temperature", type=float, default=4.0)
     parser.add_argument("--min_temperature", type=float, default=2.0)
     parser.add_argument("--max_temperature", type=float, default=4.0)
+    parser.add_argument("--adjust_temperature", action="store_true")
 
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=0.1)
 
-    parser.add_argument("--logit-stand", action="store_true")
-    parser.add_argument("--base-temp", type=float, default=2)
-    parser.add_argument("--kd-weight", type=float, default=9)
-    parser.add_argument("--num-epochs", type=int, default=100)
+    parser.add_argument("--logit_stand", action="store_true")
+    parser.add_argument("--base_temp", type=float, default=2)
+    parser.add_argument("--kd_weight", type=float, default=9)
+    parser.add_argument("--num_epochs", type=int, default=100)
 
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
@@ -152,24 +154,10 @@ if __name__ == "__main__":
         cfg.SOLVER.MIN_TEMPERATURE = args.min_temperature
         cfg.SOLVER.MAX_TEMPERATURE = args.max_temperature
         cfg.SOLVER.INIT_TEMPERATURE = args.init_temperature
+        cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
 
-        if args.logit_stand and cfg.DISTILLER.TYPE in ['KD', 'DKD', 'MLKD']:
-            cfg.EXPERIMENT.LOGIT_STAND = True
 
-            if cfg.DISTILLER.TYPE == 'KD':
-                cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
-                cfg.KD.TEMPERATURE = args.init_temperature
-
-            elif cfg.DISTILLER.TYPE == 'DKD':
-                cfg.DKD.ALPHA = cfg.DKD.ALPHA * args.kd_weight
-                cfg.DKD.BETA = cfg.DKD.BETA * args.kd_weight
-                cfg.DKD.T = args.init_temperature
-
-            elif cfg.DISTILLER.TYPE == 'MLKD':
-                cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
-                cfg.KD.TEMPERATURE = args.init_temperature
-
-    if args.logit_stand and cfg.DISTILLER.TYPE in ['KD','DKD','MLKD']:
+    if args.logit_stand is True and cfg.DISTILLER.TYPE in ['KD','DKD','MLKD']:
         cfg.EXPERIMENT.LOGIT_STAND = True
 
         if cfg.DISTILLER.TYPE == 'KD':
@@ -177,13 +165,15 @@ if __name__ == "__main__":
             cfg.KD.TEMPERATURE = args.base_temp
 
         elif cfg.DISTILLER.TYPE == 'DKD':
-            cfg.DKD.ALPHA = cfg.DKD.ALPHA * args.kd_weight
-            cfg.DKD.BETA = cfg.DKD.BETA * args.kd_weight
+            cfg.DKD.ALPHA = 1.0 * args.kd_weight
+            cfg.DKD.BETA = 8.0 * args.kd_weight
             cfg.DKD.T = args.base_temp
 
         elif cfg.DISTILLER.TYPE == 'MLKD':
             cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
             cfg.KD.TEMPERATURE = args.base_temp
+
+    cfg.LOG.WANDB = True
 
     cfg.freeze()
     main(cfg, args.resume, args.opts)
