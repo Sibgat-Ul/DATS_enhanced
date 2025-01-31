@@ -97,6 +97,7 @@ class MLKD(Distiller):
     def forward_train(self, image_weak, image_strong, target, **kwargs):
         logits_student_weak, _ = self.student(image_weak)
         logits_student_strong, _ = self.student(image_strong)
+
         with torch.no_grad():
             logits_teacher_weak, _ = self.teacher(image_weak)
             logits_teacher_strong, _ = self.teacher(image_strong)
@@ -119,7 +120,8 @@ class MLKD(Distiller):
         class_conf_mask = class_confidence.le(class_confidence_thresh).bool()
 
         # losses
-        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        student_loss = F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target)
+        loss_ce = self.ce_loss_weight * student_loss
         loss_kd_weak = self.kd_loss_weight * ((kd_loss(
             logits_student_weak,
             logits_teacher_weak,
@@ -264,11 +266,18 @@ class MLKD(Distiller):
             logits_teacher_strong,
             6.0,
         ) * mask).mean())
+
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd_weak + loss_kd_strong,
             "loss_cc": loss_cc_weak,
             "loss_bc": loss_bc_weak
         }
+
+        if self.cfg.SOLVER.TRAINER == "scheduler":
+            teacher_loss = F.cross_entropy(logits_teacher_weak, target) + F.cross_entropy(logits_teacher_strong, target)
+            loss_divergence = teacher_loss.item() - loss_ce.item()
+            return logits_student_weak, losses_dict, loss_divergence
+
         return logits_student_weak, losses_dict
 

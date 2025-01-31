@@ -75,7 +75,6 @@ class DKD(Distiller):
         with torch.no_grad():
             logits_teacher, _ = self.teacher(image)
 
-        teacher_loss = F.cross_entropy(logits_teacher, target)
         student_loss = F.cross_entropy(logits_student, target)
 
         # losses
@@ -97,6 +96,7 @@ class DKD(Distiller):
         }
 
         if self.cfg.SOLVER.TRAINER == "scheduler":
+            teacher_loss = F.cross_entropy(logits_teacher, target)
             loss_divergence = teacher_loss.item() - loss_ce.item()
             return logits_student, losses_dict, loss_divergence
 

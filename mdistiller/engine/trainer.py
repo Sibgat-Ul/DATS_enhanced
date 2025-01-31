@@ -256,8 +256,9 @@ class DynamicTemperatureScheduler(BaseTrainer):
         cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
 
         if self.adjust_temp is True:
-            log_loss = torch.log(1 + torch.tensor(loss_divergence))
-            adaptive_scale = log_loss / (log_loss + 1)
+            # log_divergence = torch.log(1 + torch.tensor(loss_divergence))
+            adaptive_scale = loss_divergence / (loss_divergence + 1)
+
             if adaptive_scale > 1:
                 target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
             else:
@@ -508,7 +509,7 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
         index = index.cuda(non_blocking=True)
 
         # forward
-        preds, losses_dict = self.distiller(image_weak=image_weak, image_strong=image_strong, target=target, epoch=epoch)
+        preds, losses_dict, loss_divergence = self.distiller(image_weak=image_weak, image_strong=image_strong, target=target, epoch=epoch)
 
         # backward
         loss = sum([l.mean() for l in losses_dict.values()])
@@ -531,6 +532,11 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
             train_meters["losses"].avg,
             train_meters["top1"].avg,
             train_meters["top5"].avg,
+        )
+
+        self.update_temperature(
+            epoch=epoch,
+            loss_divergence=loss_divergence
         )
 
         return msg
