@@ -33,7 +33,7 @@ def main(cfg, resume, opts):
     if cfg.LOG.WANDB:
         try:
             wandb.login(key="9d5a8aab3348b03e43147ae4735979a983a3e7b0")
-            wandb.init(project=cfg.EXPERIMENT.PROJECT, name=f"{tags[0]}: {tags[1]}->{tags[2]} + {cfg.SOLVER.TRAINER} + ls:{cfg.EXPERIMENT.LOGIT_STAND}", tags=tags)
+            wandb.init(project=f"{cfg.EXPERIMENT.PROJECT}_{tags[1]}->{tags[2]}", name=f"{tags[0]}: {cfg.SOLVER.TRAINER} + ls:{cfg.EXPERIMENT.LOGIT_STAND}", tags=tags)
 
         except:
             print(log_msg("Failed to use WANDB", "INFO"))
