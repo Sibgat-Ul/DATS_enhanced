@@ -21,9 +21,9 @@ import torch
 import argparse
 import torch.optim as optim
 import torch.nn.functional as F
-from data_loader import get_cifar
-from model_factory import create_cnn_model, is_resnet
-
+import torchvision.datasets
+import torchvision.transforms as transforms
+from mdistiller.models import cifar_model_dict, imagenet_model_dict
 
 # Use this code to specify the gpu device.
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -35,24 +35,71 @@ def str2bool(v):
     else:
         return False
 
+def get_cifar():
+    transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32, padding=4),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))  # Mean and std of CIFAR-10
+    ])
+
+    val_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+    ])
+
+    # Load CIFAR-10 dataset
+    train_dataset = torchvision.datasets.CIFAR100(root="./data", train=True, transform=transform, download=True)
+    val_dataset = torchvision.datasets.CIFAR100(root="./data", train=False, transform=val_transform, download=True)
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=128, shuffle=True)
+
+    return train_loader, val_loader
+
+def create_cnn_model(model_name, num_classes, student=True):
+    if student:
+        return cifar_model_dict[model_name][0](
+                num_classes=num_classes
+        )
+    else:
+        net, pretrain_model_path = cifar_model_dict[model_name]
+
+        assert (
+                pretrain_model_path is not None
+        ), "no pretrain model for teacher {}".format(model_name)
+
+        model_teacher = net(num_classes=num_classes)
+        model_teacher.load_state_dict(torch.load(pretrain_model_path)["model"])
+    return model_teacher
+
+
+def is_resnet(name):
+	"""
+	Simply checks if name represents a resnet, by convention, all resnet names start with 'resnet'
+	:param name:
+	:return:
+	"""
+	name = name.lower()
+	return name.startswith('resnet')
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Annealing Knowledge Distillation Code')
     parser.add_argument('--teacher_epochs', default=200, type=int, help='number of total epochs to run')
-    parser.add_argument('--student_epochs_p1', default=200, type=int, help='number of total epochs to run')
-    parser.add_argument('--student_epochs_p2', default=100, type=int, help='number of total epochs to run')
+    parser.add_argument('--student_epochs_p1', default=80, type=int, help='number of total epochs to run')
+    parser.add_argument('--student_epochs_p2', default=20, type=int, help='number of total epochs to run')
     parser.add_argument('--dataset', default='cifar100', type=str, help='dataset. can be either cifar10 or cifar100')
     parser.add_argument('--batch-size', default=128, type=int, help='batch_size')
     parser.add_argument('--learning-rate', default=0.1, type=float, help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, help='SGD momentum')
     parser.add_argument('--weight-decay', default=1e-4, type=float, help='SGD weight decay (default: 1e-4)')
-    parser.add_argument('--teacher', default='resnet110', type=str, help='teacher student name')
-    parser.add_argument('--student', '--model', default='resnet8', type=str, help='teacher student name')
+    parser.add_argument('--teacher', default='resnet56', type=str, help='teacher student name')
+    parser.add_argument('--student', '--model', default='resnet20', type=str, help='teacher student name')
     parser.add_argument('--teacher-checkpoint', default='', type=str, help='optinal pretrained checkpoint for teacher')
     parser.add_argument(
         "--cuda", action="store_true", help="whether or not use cuda(train on GPU)",
     )
-    parser.add_argument('--dataset-dir', default='./data', type=str, help='dataset directory')
+    # parser.add_argument('--dataset-dir', default='./data', type=str, help='dataset directory')
     parser.add_argument('--max_temperature', default=10, type=int, help='KD temperature')
     args = parser.parse_args()
     return args
@@ -78,7 +125,7 @@ class TrainManager(object):
         self.student = student
         self.teacher = teacher
         self.have_teacher = bool(self.teacher)
-        self.device = train_config['device']
+        self.device = "cuda"
         self.name = train_config['name']
         self.optimizer = optim.SGD(self.student.parameters(),
                                    lr=train_config['learning_rate'],
@@ -124,11 +171,11 @@ class TrainManager(object):
                 data = data.to(self.device)
                 target = target.to(self.device)
                 self.optimizer.zero_grad()
-                output = self.student(data)
+                output, _ = self.student(data)
 
                 if self.have_teacher:
                     if self.phase == 1:
-                        teacher_outputs = self.teacher(data)
+                        teacher_outputs, _ = self.teacher(data)
                         loss = F.mse_loss(output, teacher_outputs * T / self.max_temperature)
                     else:
                         loss = F.cross_entropy(output, target)
@@ -156,7 +203,7 @@ class TrainManager(object):
             for images, labels in self.test_loader:
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                outputs = self.student(images)
+                outputs, _ = self.student(images)
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
@@ -204,41 +251,13 @@ if __name__ == "__main__":
     dataset = args.dataset
     num_classes = 100 if dataset == 'cifar100' else 10
     teacher_model = None
-    student_model = create_cnn_model(args.student, dataset, use_cuda=args.cuda)
+    student_model = create_cnn_model(args.student, num_classes)
 
     assert args.student_epochs_p1 >= args.max_temperature, \
         "Numper of epoches of first phase can not be smaller than max-temperature"
 
     if args.teacher:
-        teacher_model = create_cnn_model(args.teacher, dataset, use_cuda=args.cuda)
-        if args.teacher_checkpoint:
-            print("---------- Loading Teacher -------")
-            teacher_model = load_checkpoint(teacher_model, args.teacher_checkpoint)
-        else:
-
-            teacher_train_config = {
-                'epochs': args.teacher_epochs,
-                'learning_rate': args.learning_rate,
-                'momentum': args.momentum,
-                'weight_decay': args.weight_decay,
-                'device': 'cuda' if args.cuda else 'cpu',
-                'is_plane': not is_resnet(args.student),
-                'trial_id': trial_id,
-                'T_student': config.get('T_student'),
-                'lambda_student': config.get('lambda_student'),
-                'name': args.teacher,
-                'checkpoint_name': 'teacher_{}_{}_best_checkpoint.tar'.format(args.teacher, args.dataset)
-
-            }
-
-            print("---------- Training Teacher -------")
-            train_loader, test_loader = get_cifar(num_classes, crop=True)
-            teacher_trainer = TrainManager(args.max_temperature, 1, teacher_model, teacher=None,
-                                           train_loader=train_loader, test_loader=test_loader,
-                                           train_config=teacher_train_config)
-            teacher_trainer.train()
-
-            teacher_model = load_checkpoint(teacher_model, teacher_train_config['checkpoint_name'])
+        teacher_model = create_cnn_model(args.teacher, num_classes=num_classes, student=False)
 
     # Student training
     print("---------- Training Student -------")
@@ -257,7 +276,7 @@ if __name__ == "__main__":
         'checkpoint_name': 'student_{}_{}_best_checkpoint.tar'.format(args.student, args.dataset),
     }
 
-    train_loader, test_loader = get_cifar(num_classes, crop=True)
+    train_loader, test_loader = get_cifar()
     print('#' * 90)
     print(" " * 41 + f"phase 1" + " " * 42)
     print('#' * 90)

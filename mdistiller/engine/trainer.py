@@ -493,6 +493,16 @@ class AugTrainer(BaseTrainer):
 
 
 class DynamicAugTrainer(DynamicTemperatureScheduler):
+    def __init__(
+            self,
+            experiment_name,
+            distiller,
+            train_loader,
+            val_loader,
+            cfg
+    ):
+        super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
+
     def train_iter(self, data, epoch, train_meters):
         self.optimizer.zero_grad()
         train_start_time = time.time()
@@ -532,7 +542,7 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
         )
 
         self.update_temperature(
-            epoch=epoch,
+            current_epoch=epoch,
             loss_divergence=loss_divergence
         )
 
