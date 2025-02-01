@@ -221,7 +221,6 @@ class BaseTrainer(object):
 
         return msg
 
-
 class DynamicTemperatureScheduler(BaseTrainer):
     def __init__(
         self,
@@ -450,8 +449,6 @@ class CRDTrainer(BaseTrainer):
         )
 
         return msg
-
-
 
 class AugTrainer(BaseTrainer):
     def train_iter(self, data, epoch, train_meters):
