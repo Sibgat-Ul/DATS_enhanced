@@ -28,8 +28,13 @@ sudo python setup.py develop
   ```bash
   # KD
   python tools/train.py --cfg configs/cifar100/kd/resnet32x4_resnet8x4.yaml
-  # KD+Ours
+  # + Scheduler
+  python tools/ours.py --cfg configs/cifar100/kd/resnet32x4_resnet8x4.yaml 
+  
+  # KD+Logit
   python tools/train.py --cfg configs/cifar100/kd/resnet32x4_resnet8x4.yaml --logit-stand --base-temp 2 --kd-weight 9 
+  # + Scheduler
+  python tools/ours.py --cfg configs/cifar100/kd/resnet32x4_resnet8x4.yaml --logit_stand
   ```
 
 2. For DKD
@@ -37,8 +42,10 @@ sudo python setup.py develop
   ```bash
   # DKD
   python tools/train.py --cfg configs/cifar100/dkd/resnet32x4_resnet8x4.yaml 
+  python tools/ours.py --cfg configs/cifar100/kd/resnet32x4_resnet8x4.yaml 
   # DKD+Ours
   python tools/train.py --cfg configs/cifar100/dkd/resnet32x4_resnet8x4.yaml --logit-stand --base-temp 2 --kd-weight 9 
+  python tools/ours.py --cfg configs/cifar100/kd/resnet32x4_resnet8x4.yaml --logit_stand
   ```
 3. For MLKD
 
@@ -91,7 +98,7 @@ We put the training logs in `./logs` and hyper-linked below. The name of each lo
   # KD
   python tools/train.py --cfg configs/imagenet/r34_r18/kd.yaml
   # KD+Ours
-  python tools/train.py --cfg configs/imagenet/r34_r18/kd.yaml --logit-stand --base-temp 2 --kd-weight 9 
+  python tools/train.py --cfg configs/imagenet/r34_r18/kd.yaml --use_scheduler --adjust_temperature --logit_stand --max_temperature 4.0 --init_temperature 4.0 --min_temeprature 2.0
   ```
 
 ## Distilling ViTs

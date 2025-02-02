@@ -45,7 +45,7 @@ def parse_option():
     parser.add_argument('--print-freq', type=int, default=100, help='print frequency')
     parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
     parser.add_argument('--num_workers', type=int, default=8, help='num of workers to use')
-    parser.add_argument('--epochs', type=int, default=240, help='number of training epochs')
+    parser.add_argument('--epochs', type=int, default=100, help='number of training epochs')
     parser.add_argument('--gpu_id', type=str, default='0', help='id(s) for CUDA_VISIBLE_DEVICES')
 
     parser.add_argument('--experiments_dir', type=str, default='models',help='Directory name to save the model, log, config')

@@ -1,13 +1,9 @@
-from termios import CEOL
-from turtle import st
 import torch
 import torch.fft
-import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
 from .base import Distiller
-from .loss import CrossEntropyLabelSmooth
 
 def normalize(logit):
     mean = logit.mean(dim=-1, keepdims=True)
@@ -276,7 +272,8 @@ class MLKD(Distiller):
 
         if self.cfg.SOLVER.TRAINER == "scheduler":
             teacher_loss = F.cross_entropy(logits_teacher_weak, target) + F.cross_entropy(logits_teacher_strong, target)
-            loss_divergence = teacher_loss.item() - loss_ce.item()
+            with torch.no_grad():
+                loss_divergence = teacher_loss.item() - loss_ce.item()
             return logits_student_weak, losses_dict, loss_divergence
 
         return logits_student_weak, losses_dict

@@ -250,7 +250,6 @@ class DynamicTemperatureScheduler(BaseTrainer):
             print("Skipping Temperature Update")
 
     def update_temperature(self, current_epoch, loss_divergence):
-
         progress = torch.tensor(current_epoch / self.max_epoch)
         cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
 

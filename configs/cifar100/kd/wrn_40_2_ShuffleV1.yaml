@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "kd,wrn_40_2,ShuffleV1,2,9"
+  TAG: "kd,wrn_40_2,shuv1,2,9"
   PROJECT: "cifar100_baselines"
 DISTILLER:
   TYPE: "KD"
