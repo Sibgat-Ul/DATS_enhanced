@@ -320,8 +320,8 @@ if __name__ == "__main__":
     max_epoch = 100
     lr = 0.05
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=256)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+    val_loader = DataLoader(val_dataset, batch_size=256, num_workers=2)
 
     teacher_model, path = cifar_model_dict[teacher]
     teacher_model = teacher_model(num_classes=num_classes)
