@@ -1,5 +1,5 @@
 import torch
-from torch.nn import Module
+import torch.nn as nn
 import torch.nn.functional as F
 from mdistiller.distillers import distiller_dict
 import wandb
@@ -11,8 +11,7 @@ from torch.utils.data import DataLoader
 from mdistiller.models import cifar_model_dict
 from mdistiller.engine.cfg import CFG as cfg
 
-
-class DynamicTemperatureScheduler(Module):
+class DynamicTemperatureScheduler(nn.Module):
     def __init__(
             self,
             distiller: Distiller,
@@ -155,7 +154,7 @@ def train_knowledge_distillation(
         lr = adjust_learning_rate(epoch + 1, lr, student_optimizer) if scheduler == None else 0
 
         for batch_idx, (batch_x, batch_y) in enumerate(train_loader):
-            batch_x, batch_y = batch_x.to('cuda', non_blocking=True), batch_y.to('cuda', non_blocking=True)
+            batch_x, batch_y = batch_x.to('cuda'), batch_y.to('cuda')
 
             # Combine losses
             student_logits, total_batch_loss, loss_divergence = temperature_scheduler(
