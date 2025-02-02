@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+from torch.nn import Module
 import torch.nn.functional as F
 from mdistiller.distillers import distiller_dict
 import wandb
@@ -11,11 +11,11 @@ from torch.utils.data import DataLoader
 from mdistiller.models import cifar_model_dict
 from mdistiller.engine.cfg import CFG as cfg
 
-class DynamicTemperatureScheduler(nn.Module):
+
+class DynamicTemperatureScheduler(Module):
     def __init__(
             self,
             distiller: Distiller,
-            logit_stand: False,
             initial_temperature=8.0,
             min_temperature=4.0,
             max_temperature=8,
@@ -155,7 +155,7 @@ def train_knowledge_distillation(
         lr = adjust_learning_rate(epoch + 1, lr, student_optimizer) if scheduler == None else 0
 
         for batch_idx, (batch_x, batch_y) in enumerate(train_loader):
-            batch_x, batch_y = batch_x.to('cuda'), batch_y.to('cuda')
+            batch_x, batch_y = batch_x.to('cuda', non_blocking=True), batch_y.to('cuda', non_blocking=True)
 
             # Combine losses
             student_logits, total_batch_loss, loss_divergence = temperature_scheduler(
@@ -347,7 +347,6 @@ if __name__ == "__main__":
 
     temp_scheduler = DynamicTemperatureScheduler(
         distiller_dict[cfg.DISTILLER.TYPE](student_model, teacher_model, cfg),
-        logit_stand=logit_stand,
         initial_temperature=max_temp,
         min_temperature=min_temp,
         max_temperature=max_temp,
@@ -395,5 +394,5 @@ if __name__ == "__main__":
         lr=lr,
         epochs=max_epoch,
         val_steps=20,
-        temperature_scheduler=temp_scheduler,
+        temperature_scheduler=temp_scheduler
     )
