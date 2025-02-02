@@ -53,6 +53,24 @@ def logit_distill_loss(logits_t, logits_s, loss_type, temperature, logit_standar
     return distillation_loss
 
 
+class DynamicTemperatureScheduler(nn.Module):
+    def __init__(
+            self,
+            initial_temperature=8.0,
+            min_temperature=4.0,
+            max_temperature=8,
+            max_epoch=50,
+            warmup=20,
+    ):
+        super(DynamicTemperatureScheduler, self).__init__()
+
+        self.current_temperature = initial_temperature
+        self.initial_temperature = initial_temperature
+        self.min_temperature = min_temperature
+        self.max_temperature = max_temperature
+        self.max_epoch = max_epoch
+        self.warmup = warmup
+
 class DistillationWrapper(nn.Module):
 
     def __init__(self, student_model, teacher_mode):
@@ -61,11 +79,19 @@ class DistillationWrapper(nn.Module):
         self.inter_transform_type = cfg.DISTILLATION.INTER_TRANSFORM
         self.student_idx = cfg.DISTILLATION.INTER_STUDENT_INDEX
         self.teacher_idx = cfg.DISTILLATION.INTER_TEACHER_INDEX
+
         self.enable_logit = cfg.DISTILLATION.ENABLE_LOGIT
         self.logit_loss_type = cfg.DISTILLATION.LOGIT_LOSS
         self.teacher_img_size = cfg.DISTILLATION.TEACHER_IMG_SIZE
         self.offline = cfg.DISTILLATION.OFFLINE
+
+        self.scheduler = cfg.DISTILLATION.SCHEDULE
+        self.min_temperature = cfg.DISTILLATION.LOGIT_TEMP
         self.temperature = cfg.DISTILLATION.LOGIT_TEMP
+        self.max_temperature = self.min_temperature*2
+        self.initial_temperature = self.max_temperature
+        self.current_temperature = self.initial_temperature
+
         self.logit_standard = cfg.DISTILLATION.LOGIT_STANDARD
         self.extra_weight_in = cfg.DISTILLATION.EXTRA_WEIGHT_IN
         assert not self.offline or not self.enable_logit, 'Logit distillation is not supported when offline is enabled.'
@@ -86,11 +112,36 @@ class DistillationWrapper(nn.Module):
         if self.inter_transform_type == 'linear':
             self.feature_transforms = nn.ModuleList()
             for i, j in zip(self.student_idx, self.teacher_idx):
-                self.feature_transforms.append(nn.Conv2d(self.student_model.feature_dims[i], self.teacher_model.feature_dims[j], 1))
+                self.feature_transforms.append(
+                    nn.Conv2d(self.student_model.feature_dims[i], self.teacher_model.feature_dims[j], 1))
+
+    def update_temperature(self, current_epoch, loss_divergence):
+        progress = torch.tensor(current_epoch / self.max_epoch)
+        cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
+        # log_loss = torch.log(torch.tensor(loss_divergence))
+        adaptive_scale = loss_divergence / (loss_divergence + 1)
+
+        if adaptive_scale > 1:
+            target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
+        else:
+            target_temperature = self.initial_temperature * cosine_factor
+
+        target_temperature = torch.clamp(
+            target_temperature,
+            self.min_temperature,
+            self.max_temperature
+        )
+
+        momentum = 0.9
+
+        self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
+
+    def get_temperature(self):
+        return self.current_temperature
 
     def load_state_dict(self, state_dict, strict=True):
         return self.student_model.load_state_dict(state_dict, strict)
-    
+
     def state_dict(self, destination=None, prefix='', keep_vars=False):
         return self.student_model.state_dict(destination, prefix, keep_vars)
 
@@ -105,7 +156,7 @@ class DistillationWrapper(nn.Module):
         complexity["teacher"] = teacher_complexity
         return complexity
 
-    def guidance_loss(self, x, offline_feats):
+    def guidance_loss(self, x, offline_feats, epoch, target):
         logits_s = self.student_model.distill_logits
         feats_s = self.student_model.features
 
@@ -113,7 +164,8 @@ class DistillationWrapper(nn.Module):
             logits_t = None
             feats_t = offline_feats
         else:
-            x = F.interpolate(x, size=(self.teacher_img_size, self.teacher_img_size), mode='bilinear', align_corners=False)
+            x = F.interpolate(x, size=(self.teacher_img_size, self.teacher_img_size), mode='bilinear',
+                              align_corners=False)
             with torch.no_grad():
                 logits_t = self.teacher_model(x)
                 feats_t = self.teacher_model.features
@@ -132,6 +184,13 @@ class DistillationWrapper(nn.Module):
                 feat_s = F.interpolate(feat_s, dsize, mode='bilinear', align_corners=False)
                 loss_inter = loss_inter + inter_distill_loss(feat_t, feat_s, self.inter_transform_type)
 
-        loss_logit = logit_distill_loss(logits_t, logits_s, self.logit_loss_type, self.temperature, self.logit_standard, extra_weight_in=self.extra_weight_in) if self.enable_logit else x.new_tensor(0.0)
+        loss_logit = logit_distill_loss(logits_t, logits_s, self.logit_loss_type, self.current_temperature if self.scheduler else self.temperature, self.logit_standard,
+                                        extra_weight_in=self.extra_weight_in) if self.enable_logit else x.new_tensor(
+            0.0)
+
+        t_loss = F.cross_entropy(logits_t, target)
+        s_loss = F.cross_entropy(logits_s, target)
+        loss_divergence = t_loss.item() + s_loss.item()
+        self.update_temperature(epoch, loss_divergence)
 
         return loss_inter, loss_logit

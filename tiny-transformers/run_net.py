@@ -25,6 +25,7 @@ def parse_args():
     help_s, choices = "Run mode", ["train", "test", "time"]
     parser.add_argument("--mode", help=help_s, choices=choices, required=True, type=str)
     help_s = "Config file location"
+    parser.add_argument("--use_scheduler", help=help_s, action="store_true")
     parser.add_argument("--cfg", help=help_s, required=True, type=str)
     help_s = "See pycls/core/config.py for all options"
     parser.add_argument("opts", help=help_s, default=None, nargs=argparse.REMAINDER)
@@ -37,6 +38,7 @@ def parse_args():
 def main():
     args = parse_args()
     mode = args.mode
+    cfg.DISTILLATION.SCHEDULE = args.use_scheduler
     config.load_cfg(args.cfg)
     cfg.merge_from_list(args.opts)
     if cfg.OUT_DIR is None:

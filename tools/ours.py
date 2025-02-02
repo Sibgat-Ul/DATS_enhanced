@@ -12,20 +12,6 @@ from mdistiller.models import cifar_model_dict
 from mdistiller.engine.cfg import CFG as cfg
 
 class DynamicTemperatureScheduler(nn.Module):
-    """
-    Dynamic Temperature Scheduler for Knowledge Distillation.
-
-    Args:
-        initial_temperature (float): Starting temperature value.
-        min_temperature (float): Minimum allowable temperature.
-        max_temperature (float): Maximum allowable temperature.
-        schedule_type (str): Type of temperature scheduling strategy.
-        loss_type (str): Type of loss to use (combined or general KD).
-        alpha (float): Importance for soft loss, 1-alpha for hard loss.
-        beta (float): Importance of cosine loss.
-        gamma (float): Importance for RMSE loss.
-    """
-
     def __init__(
             self,
             distiller: Distiller,
@@ -257,8 +243,8 @@ def train_knowledge_distillation(
         if top1_acc > best_top1_acc:
             best_top1_acc = top1_acc
             run.summary["best_acc"] = best_top1_acc
-            if top1_acc > 60.0 and (epoch + 1) > 90:
-                torch.save(student_model.state_dict(), f"./output/DTAD_@{top1_acc}.pth")
+            if top1_acc > 60.0 and (epoch + 1) > 87:
+                torch.save(student_model.state_dict(), f"./output/DTS_best.pth")
                 print(f"Best model saved at epoch {epoch + 1} with Top-1 Accuracy: {best_top1_acc:.2f}%")
 
     print("Best Model Accuracy: ", best_top1_acc)
@@ -378,27 +364,27 @@ if __name__ == "__main__":
     top1_acc = 0
     top5_acc = 0
 
-    print("-" * 15 + " Teacher Validation " + "-" * 15)
-    with torch.no_grad():
-        for val_x, val_y in val_loader:
-            val_x, val_y = val_x.to("cuda"), val_y.to("cuda")
-            val_outputs, _ = teacher_model(val_x)
-            val_batch_loss = F.cross_entropy(val_outputs, val_y)
-            val_loss += val_batch_loss.item()
-
-            # Calculate accuracies
-            batch_top1, batch_top5 = calculate_accuracy(val_outputs, val_y)
-            top1_acc += batch_top1.item()
-            top5_acc += batch_top5.item()
-
-    # Average validation metrics
-    val_loss /= len(val_loader)
-    top1_acc /= len(val_loader)
-    top5_acc /= len(val_loader)
-
-    print(f"Val Loss: {val_loss:.4f} | "
-          f"Top-1 Accuracy: {top1_acc:.2f}% | Top-5 Accuracy: {top5_acc:.2f}%")
-    print("-" * 50)
+    # print("-" * 15 + " Teacher Validation " + "-" * 15)
+    # with torch.no_grad():
+    #     for val_x, val_y in val_loader:
+    #         val_x, val_y = val_x.to("cuda"), val_y.to("cuda")
+    #         val_outputs, _ = teacher_model(val_x)
+    #         val_batch_loss = F.cross_entropy(val_outputs, val_y)
+    #         val_loss += val_batch_loss.item()
+    #
+    #         # Calculate accuracies
+    #         batch_top1, batch_top5 = calculate_accuracy(val_outputs, val_y)
+    #         top1_acc += batch_top1.item()
+    #         top5_acc += batch_top5.item()
+    #
+    # # Average validation metrics
+    # val_loss /= len(val_loader)
+    # top1_acc /= len(val_loader)
+    # top5_acc /= len(val_loader)
+    #
+    # print(f"Val Loss: {val_loss:.4f} | "
+    #       f"Top-1 Accuracy: {top1_acc:.2f}% | Top-5 Accuracy: {top5_acc:.2f}%")
+    # print("-" * 50)
 
     exp_name = f"{teacher}->{student}(Ours) {loss_type} + {logit_stand} {max_temp}->{min_temp}"
     trained_student = train_knowledge_distillation(
