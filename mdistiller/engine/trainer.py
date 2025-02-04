@@ -40,6 +40,7 @@ class BaseTrainer(object):
         self.val_loader = val_loader
         self.optimizer = self.init_optimizer(cfg)
         self.best_acc = -1
+        self.max_epochs = cfg.SOLVER.EPOCHS
 
         username = getpass.getuser()
         # init loggers
@@ -108,7 +109,7 @@ class BaseTrainer(object):
         while epoch < self.cfg.SOLVER.EPOCHS + 1:
             self.train_epoch(epoch)
             epoch += 1
-        print(log_msg("Best accuracy:{}".format(self.best_acc), "EVAL"))
+        print(log_msg("Best accuracy:{:.2f}".format(self.best_acc), "EVAL"))
         with open(os.path.join(self.log_path, f"worklog_{self.cfg.SOLVER.TRAINER}.txt"), "a") as writer:
             writer.write("best_acc\t" + "{:.2f}".format(float(self.best_acc)))
 
@@ -116,10 +117,10 @@ class BaseTrainer(object):
         lr = adjust_learning_rate(epoch, self.cfg, self.optimizer)
         train_meters = {
             "training_time": AverageMeter(),
-            "data_time": AverageMeter(),
             "losses": AverageMeter(),
             "top1": AverageMeter(),
             "top5": AverageMeter(),
+            "temp": self.distiller.module.temperature,
         }
 
         num_iter = len(self.train_loader)
@@ -187,7 +188,6 @@ class BaseTrainer(object):
         self.optimizer.zero_grad()
         train_start_time = time.time()
         image, target, index = data
-        train_meters["data_time"].update(time.time() - train_start_time)
         image = image.float()
         image = image.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
@@ -210,9 +210,10 @@ class BaseTrainer(object):
         train_meters["top5"].update(acc5[0], batch_size)
 
         # print info
-        msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
+        msg = "Epoch:{}/{}| Temp: {:.2f}| Time(train): {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
             epoch,
-            train_meters["data_time"].avg,
+            self.max_epochs,
+            self.distiller.module.temperature,
             train_meters["training_time"].avg,
             train_meters["losses"].avg,
             train_meters["top1"].avg,
@@ -236,7 +237,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
         self.initial_temperature = cfg.SOLVER.INIT_TEMPERATURE
         self.min_temperature = cfg.SOLVER.MIN_TEMPERATURE
         self.max_temperature = cfg.SOLVER.MAX_TEMPERATURE
-        self.max_epoch = cfg.SOLVER.EPOCHS
+        self.max_epochs = cfg.SOLVER.EPOCHS
         self.has_temp = True
         self.adjust_temp = cfg.SOLVER.ADJUST_TEMPERATURE
 
@@ -250,7 +251,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
             print("Skipping Temperature Update")
 
     def update_temperature(self, current_epoch, loss_divergence):
-        progress = torch.tensor(current_epoch / self.max_epoch)
+        progress = torch.tensor(current_epoch / self.max_epochs)
         cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
 
         if self.adjust_temp is True:
@@ -291,9 +292,9 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
         train_meters = {
             "training_time": AverageMeter(),
-            "data_time": AverageMeter(),
             "losses": AverageMeter(),
             "top1": AverageMeter(),
+            "top5": AverageMeter(),
             "temp": self.current_temperature,
         }
 
@@ -330,7 +331,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
             "model": self.distiller.state_dict(),
             "optimizer": self.optimizer.state_dict(),
             "best_acc": self.best_acc,
-            "temp": self.current_temperature,
+            "temp": self.distiller.module.temperature,
         }
 
         student_state = {"model": self.distiller.module.student.state_dict()}
@@ -366,7 +367,6 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
         image, target, index = data
 
-        train_meters["data_time"].update(time.time() - train_start_time)
         image = image.float()
         image = image.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
@@ -389,15 +389,17 @@ class DynamicTemperatureScheduler(BaseTrainer):
         acc1, acc5 = accuracy(preds, target, topk=(1, 5))
         train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
         train_meters["top1"].update(acc1[0], batch_size)
+        train_meters["top5"].update(acc5[0], batch_size)
 
         # print info
-        msg = "Epoch: {}/{} | Temp:{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}".format(
+        msg = "Epoch: {}/{} | Temp: {:.2f}| Time(train): {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
             epoch,
-            self.max_epoch,
+            self.max_epochs,
             self.distiller.module.temperature,
             train_meters["training_time"].avg,
             train_meters["losses"].avg,
             train_meters["top1"].avg,
+            train_meters["top5"].avg
         )
 
         self.update_temperature(
@@ -407,12 +409,109 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
         return msg
 
+
+class AugTrainer(BaseTrainer):
+    def train_iter(self, data, epoch, train_meters):
+        self.optimizer.zero_grad()
+        train_start_time = time.time()
+        image, target, index = data
+        image_weak, image_strong = image
+        image_weak, image_strong = image_weak.float(), image_strong.float()
+        image_weak, image_strong = image_weak.cuda(non_blocking=True), image_strong.cuda(non_blocking=True)
+
+        target = target.cuda(non_blocking=True)
+        index = index.cuda(non_blocking=True)
+
+        # forward
+        preds, losses_dict = self.distiller(image_weak=image_weak, image_strong=image_strong, target=target, epoch=epoch)
+
+        # backward
+        loss = sum([l.mean() for l in losses_dict.values()])
+        loss.backward()
+        self.optimizer.step()
+        train_meters["training_time"].update(time.time() - train_start_time)
+
+        # collect info
+        batch_size = image_weak.size(0)
+        acc1, acc5 = accuracy(preds, target, topk=(1, 5))
+        train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
+        train_meters["top1"].update(acc1[0], batch_size)
+        train_meters["top5"].update(acc5[0], batch_size)
+
+        # print info
+        msg = "Epoch:{}| Time(train):{:.2f}| Loss:{:.2f}| Top-1:{:.2f}| Top-5:{:.2f}".format(
+            epoch,
+            train_meters["training_time"].avg,
+            train_meters["losses"].avg,
+            train_meters["top1"].avg,
+            train_meters["top5"].avg,
+        )
+
+        return msg
+
+
+class DynamicAugTrainer(DynamicTemperatureScheduler):
+    def __init__(
+            self,
+            experiment_name,
+            distiller,
+            train_loader,
+            val_loader,
+            cfg
+    ):
+        super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
+
+    def train_iter(self, data, epoch, train_meters):
+        self.optimizer.zero_grad()
+        train_start_time = time.time()
+        image, target, index = data
+        image_weak, image_strong = image
+        image_weak, image_strong = image_weak.float(), image_strong.float()
+        image_weak, image_strong = image_weak.cuda(non_blocking=True), image_strong.cuda(non_blocking=True)
+
+        target = target.cuda(non_blocking=True)
+        index = index.cuda(non_blocking=True)
+
+        # forward
+        preds, losses_dict, loss_divergence = self.distiller(image_weak=image_weak, image_strong=image_strong, target=target, epoch=epoch)
+
+        # backward
+        loss = sum([l.mean() for l in losses_dict.values()])
+        loss.backward()
+        self.optimizer.step()
+        train_meters["training_time"].update(time.time() - train_start_time)
+
+        # collect info
+        batch_size = image_weak.size(0)
+        acc1, acc5 = accuracy(preds, target, topk=(1, 5))
+        train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
+        train_meters["top1"].update(acc1[0], batch_size)
+        train_meters["top5"].update(acc5[0], batch_size)
+
+        # print info
+        msg = "Epoch: {}/{} | Temp: {:.2f}| Time(train): {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
+            epoch,
+            self.max_epochs,
+            self.distiller.module.temperature,
+            train_meters["training_time"].avg,
+            train_meters["losses"].avg,
+            train_meters["top1"].avg,
+            train_meters["top5"].avg
+        )
+
+        self.update_temperature(
+            current_epoch=epoch,
+            loss_divergence=loss_divergence
+        )
+
+        return msg
+
+
 class CRDTrainer(BaseTrainer):
     def train_iter(self, data, epoch, train_meters):
         self.optimizer.zero_grad()
         train_start_time = time.time()
         image, target, index, contrastive_index = data
-        train_meters["data_time"].update(time.time() - train_start_time)
         image = image.float()
         image = image.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
@@ -445,104 +544,6 @@ class CRDTrainer(BaseTrainer):
             train_meters["losses"].avg,
             train_meters["top1"].avg,
             train_meters["top5"].avg,
-        )
-
-        return msg
-
-class AugTrainer(BaseTrainer):
-    def train_iter(self, data, epoch, train_meters):
-        self.optimizer.zero_grad()
-        train_start_time = time.time()
-        image, target, index = data
-        train_meters["data_time"].update(time.time() - train_start_time)
-        image_weak, image_strong = image
-        image_weak, image_strong = image_weak.float(), image_strong.float()
-        image_weak, image_strong = image_weak.cuda(non_blocking=True), image_strong.cuda(non_blocking=True)
-
-        target = target.cuda(non_blocking=True)
-        index = index.cuda(non_blocking=True)
-
-        # forward
-        preds, losses_dict = self.distiller(image_weak=image_weak, image_strong=image_strong, target=target, epoch=epoch)
-
-        # backward
-        loss = sum([l.mean() for l in losses_dict.values()])
-        loss.backward()
-        self.optimizer.step()
-        train_meters["training_time"].update(time.time() - train_start_time)
-
-        # collect info
-        batch_size = image_weak.size(0)
-        acc1, acc5 = accuracy(preds, target, topk=(1, 5))
-        train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
-        train_meters["top1"].update(acc1[0], batch_size)
-        train_meters["top5"].update(acc5[0], batch_size)
-
-        # print info
-        msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
-            epoch,
-            train_meters["data_time"].avg,
-            train_meters["training_time"].avg,
-            train_meters["losses"].avg,
-            train_meters["top1"].avg,
-            train_meters["top5"].avg,
-        )
-
-        return msg
-
-
-class DynamicAugTrainer(DynamicTemperatureScheduler):
-    def __init__(
-            self,
-            experiment_name,
-            distiller,
-            train_loader,
-            val_loader,
-            cfg
-    ):
-        super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
-
-    def train_iter(self, data, epoch, train_meters):
-        self.optimizer.zero_grad()
-        train_start_time = time.time()
-        image, target, index = data
-        train_meters["data_time"].update(time.time() - train_start_time)
-        image_weak, image_strong = image
-        image_weak, image_strong = image_weak.float(), image_strong.float()
-        image_weak, image_strong = image_weak.cuda(non_blocking=True), image_strong.cuda(non_blocking=True)
-
-        target = target.cuda(non_blocking=True)
-        index = index.cuda(non_blocking=True)
-
-        # forward
-        preds, losses_dict, loss_divergence = self.distiller(image_weak=image_weak, image_strong=image_strong, target=target, epoch=epoch)
-
-        # backward
-        loss = sum([l.mean() for l in losses_dict.values()])
-        loss.backward()
-        self.optimizer.step()
-        train_meters["training_time"].update(time.time() - train_start_time)
-
-        # collect info
-        batch_size = image_weak.size(0)
-        acc1, acc5 = accuracy(preds, target, topk=(1, 5))
-        train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
-        train_meters["top1"].update(acc1[0], batch_size)
-        train_meters["top5"].update(acc5[0], batch_size)
-
-        # print info
-        msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
-            epoch,
-            train_meters["data_time"].avg,
-            train_meters["training_time"].avg,
-            train_meters["losses"].avg,
-            train_meters["top1"].avg,
-            train_meters["top5"].avg,
-        )
-
-        self.update_temperature(
-            current_epoch=epoch,
-            loss_divergence=loss_divergence
         )
 
         return msg

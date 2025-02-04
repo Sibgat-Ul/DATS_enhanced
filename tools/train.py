@@ -1,11 +1,9 @@
 import os
-import argparse
 import torch
-import torch.nn as nn
-import torch.backends.cudnn as cudnn
 import wandb
+import gc
 
-cudnn.benchmark = True
+import torch.backends.cudnn as cudnn
 
 from mdistiller.models import cifar_model_dict, imagenet_model_dict
 from mdistiller.distillers import distiller_dict
@@ -14,6 +12,12 @@ from mdistiller.engine.utils import load_checkpoint, log_msg
 from mdistiller.engine.cfg import CFG as cfg
 from mdistiller.engine.cfg import show_cfg
 from mdistiller.engine import trainer_dict
+
+import warnings
+
+cudnn.benchmark = True
+
+warnings.filterwarnings("ignore")
 
 def main(cfg, resume, opts):
     experiment_name = cfg.EXPERIMENT.NAME
@@ -40,7 +44,10 @@ def main(cfg, resume, opts):
             cfg.LOG.WANDB = False
 
     # cfg & loggers
-    show_cfg(cfg)
+    if not cfg.REUSE:
+        #show_cfg(cfg)
+        print(log_msg("\nTrainer: {}\n Distiller: {}".format(cfg.SOLVER.TRAINER, cfg.DISTILLER.TYPE), "INFO"))
+
     # init dataloader & models
     if cfg.DISTILLER.TYPE == 'MLKD':
         train_loader, val_loader, num_data, num_classes = get_dataset_strong(cfg)
@@ -77,7 +84,13 @@ def main(cfg, resume, opts):
 
             model_teacher = net(num_classes=num_classes)
             model_teacher.load_state_dict(load_checkpoint(pretrain_model_path)["model"])
+
             model_student = cifar_model_dict[cfg.DISTILLER.STUDENT][0](
+                num_classes=num_classes
+            )
+
+            if cfg.REUSE:
+                model_student_2 = cifar_model_dict[cfg.DISTILLER.STUDENT][0](
                 num_classes=num_classes
             )
 
@@ -87,29 +100,99 @@ def main(cfg, resume, opts):
             )
 
         else:
-            distiller = distiller_dict[cfg.DISTILLER.TYPE](
-                model_student, model_teacher, cfg
+            if cfg.REUSE:
+                distiller1 = distiller_dict[cfg.DISTILLER.TYPE](
+                    model_student, model_teacher, cfg
+                )
+
+                distiller2 = distiller_dict[cfg.DISTILLER.TYPE](
+                    model_student_2, model_teacher, cfg
+                )
+
+            else:
+                distiller = distiller_dict[cfg.DISTILLER.TYPE](
+                    model_student, model_teacher, cfg
+                )
+
+    if cfg.REUSE:
+        cfg[cfg.DISTILLER.TYPE].WARMUP = 5
+        cfg.SOLVER.TRAINER = "base"
+        cfg.freeze()
+        print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
+
+        distiller = torch.nn.DataParallel(distiller1.cuda())
+
+        if cfg.DISTILLER.TYPE != "NONE":
+            print(
+                log_msg(
+                    "Trainer Extra parameters of {}: {}\033[0m".format(
+                        cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
+                    ),
+                    "INFO",
+                )
             )
 
-    distiller = torch.nn.DataParallel(distiller.cuda())
+        trainer = trainer_dict["base"](
+            experiment_name, distiller, train_loader, val_loader, cfg
+        )
+        trainer.train(resume=resume)
 
-    if cfg.DISTILLER.TYPE != "NONE":
-        print(
-            log_msg(
-                "Extra parameters of {}: {}\033[0m".format(
-                    cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
-                ),
-                "INFO",
+        del distiller, trainer
+        torch.cuda.empty_cache()
+        gc.collect()
+
+        cfg.defrost()
+
+        distiller = torch.nn.DataParallel(distiller2.cuda())
+
+        cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
+        cfg.SOLVER.MAX_TEMPERATURE = (cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2) + 1
+        cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
+
+        # cfg.SOLVER.INIT_TEMPERATURE = 1
+        # cfg.SOLVER.MAX_TEMPERATURE = 1
+        # cfg.SOLVER.MIN_TEMPERATURE = 1
+
+        cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
+        cfg.SOLVER.TRAINER = "scheduler"
+        cfg.freeze()
+
+        print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
+
+        if cfg.DISTILLER.TYPE != "NONE":
+            print(
+                log_msg(
+                    "Extra parameters of {}: {}\033[0m".format(
+                        cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
+                    ),
+                    "INFO",
+                )
             )
+        trainer = trainer_dict["scheduler"](
+            experiment_name, distiller, train_loader, val_loader, cfg
         )
 
-    # train
-    trainer = trainer_dict[cfg.SOLVER.TRAINER](
-        experiment_name, distiller, train_loader, val_loader, cfg
-    )
+        trainer.train(resume=resume)
 
-    trainer.train(resume=resume)
+    else:
+        # train
+        distiller = torch.nn.DataParallel(distiller.cuda())
 
+        if cfg.DISTILLER.TYPE != "NONE":
+            print(
+                log_msg(
+                    "Extra parameters of {}: {}\033[0m".format(
+                        cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
+                    ),
+                    "INFO",
+                )
+            )
+
+        trainer = trainer_dict[cfg.SOLVER.TRAINER](
+            experiment_name, distiller, train_loader, val_loader, cfg
+        )
+
+        trainer.train(resume=resume)
 
 if __name__ == "__main__":
     import argparse
@@ -138,6 +221,9 @@ if __name__ == "__main__":
     parser.add_argument("--kd_weight", type=float, default=9)
     parser.add_argument("--num_epochs", type=int, default=100)
 
+    parser.add_argument("--reuse", action="store_true")
+    parser.add_argument("--wandb", action="store_true")
+
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -156,12 +242,16 @@ if __name__ == "__main__":
         cfg.SOLVER.INIT_TEMPERATURE = args.init_temperature
         cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
 
+    if args.distiller_type == "MLKD":
+        cfg.SOLVER.TRAINER = "ls"
+
+    cfg.EXPERIMENT.LOGIT_STAND = args.logit_stand
 
     if args.logit_stand is True and cfg.DISTILLER.TYPE in ['KD','DKD','MLKD']:
         cfg.EXPERIMENT.LOGIT_STAND = True
 
         if cfg.DISTILLER.TYPE == 'KD':
-            cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
+            cfg.KD.LOSS.KD_WEIGHT = 9.0
             cfg.KD.TEMPERATURE = args.base_temp
 
         elif cfg.DISTILLER.TYPE == 'DKD':
@@ -173,7 +263,10 @@ if __name__ == "__main__":
             cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
             cfg.KD.TEMPERATURE = args.base_temp
 
-    cfg.LOG.WANDB = True
+    cfg.LOG.WANDB = args.wandb
+    cfg.REUSE = True if args.reuse else False
 
-    cfg.freeze()
+    if not cfg.REUSE:
+        cfg.freeze()
+
     main(cfg, args.resume, args.opts)

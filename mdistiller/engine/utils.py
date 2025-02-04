@@ -49,8 +49,8 @@ def validate(val_loader, distiller):
             # measure elapsed time
             batch_time.update(time.time() - start_time)
             start_time = time.time()
-            msg = "Top-1:{top1.avg:.3f}| Top-5:{top5.avg:.3f}".format(
-                top1=top1, top5=top5
+            msg = "Top-1: {:.2f}| Top-5: {:.2f}| Loss: {:.2f}".format(
+                top1.avg, top5.avg, losses.avg
             )
             pbar.set_description(log_msg(msg, "EVAL"))
             pbar.update()
