@@ -115,64 +115,124 @@ def main(cfg, resume, opts):
                 )
 
     if cfg.REUSE:
-        cfg[cfg.DISTILLER.TYPE].WARMUP = 5
-        cfg.SOLVER.TRAINER = "base"
-        cfg.freeze()
-        print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
+        if cfg.DISTILLER.TYPE == "MLKD":
+            cfg.SOLVER.TRAINER = "ls"
+            cfg.freeze()
+            print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
 
-        distiller = torch.nn.DataParallel(distiller1.cuda())
+            distiller = torch.nn.DataParallel(distiller1.cuda())
 
-        if cfg.DISTILLER.TYPE != "NONE":
-            print(
-                log_msg(
-                    "Trainer Extra parameters of {}: {}\033[0m".format(
-                        cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
-                    ),
-                    "INFO",
+            if cfg.DISTILLER.TYPE != "NONE":
+                print(
+                    log_msg(
+                        "Trainer Extra parameters of {}: {}\033[0m".format(
+                            cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
+                        ),
+                        "INFO",
+                    )
                 )
+
+            trainer = trainer_dict["ls"](
+                experiment_name, distiller, train_loader, val_loader, cfg
+            )
+            trainer.train(resume=resume)
+
+            del distiller, trainer
+            torch.cuda.empty_cache()
+            gc.collect()
+
+            cfg.defrost()
+
+            distiller = torch.nn.DataParallel(distiller2.cuda())
+
+            cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
+            cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
+            cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
+
+            # cfg.SOLVER.INIT_TEMPERATURE = 1
+            # cfg.SOLVER.MAX_TEMPERATURE = 1
+            # cfg.SOLVER.MIN_TEMPERATURE = 1
+
+            cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
+            cfg.SOLVER.TRAINER = "scheduler"
+            cfg.freeze()
+
+            print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
+
+            if cfg.DISTILLER.TYPE != "NONE":
+                print(
+                    log_msg(
+                        "Extra parameters of {}: {}\033[0m".format(
+                            cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
+                        ),
+                        "INFO",
+                    )
+                )
+            trainer = trainer_dict["ourls"](
+                experiment_name, distiller, train_loader, val_loader, cfg
             )
 
-        trainer = trainer_dict["base"](
-            experiment_name, distiller, train_loader, val_loader, cfg
-        )
-        trainer.train(resume=resume)
+            trainer.train(resume=resume)
 
-        del distiller, trainer
-        torch.cuda.empty_cache()
-        gc.collect()
+        else:
+            cfg[cfg.DISTILLER.TYPE].WARMUP = 5
+            cfg.SOLVER.TRAINER = "base"
+            cfg.freeze()
+            print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
 
-        cfg.defrost()
+            distiller = torch.nn.DataParallel(distiller1.cuda())
 
-        distiller = torch.nn.DataParallel(distiller2.cuda())
-
-        cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
-        cfg.SOLVER.MAX_TEMPERATURE = (cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2) + 1
-        cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
-
-        # cfg.SOLVER.INIT_TEMPERATURE = 1
-        # cfg.SOLVER.MAX_TEMPERATURE = 1
-        # cfg.SOLVER.MIN_TEMPERATURE = 1
-
-        cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
-        cfg.SOLVER.TRAINER = "scheduler"
-        cfg.freeze()
-
-        print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
-
-        if cfg.DISTILLER.TYPE != "NONE":
-            print(
-                log_msg(
-                    "Extra parameters of {}: {}\033[0m".format(
-                        cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
-                    ),
-                    "INFO",
+            if cfg.DISTILLER.TYPE != "NONE":
+                print(
+                    log_msg(
+                        "Trainer Extra parameters of {}: {}\033[0m".format(
+                            cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
+                        ),
+                        "INFO",
+                    )
                 )
-            )
-        trainer = trainer_dict["scheduler"](
-            experiment_name, distiller, train_loader, val_loader, cfg
-        )
 
-        trainer.train(resume=resume)
+            trainer = trainer_dict["base"](
+                experiment_name, distiller, train_loader, val_loader, cfg
+            )
+            trainer.train(resume=resume)
+
+            del distiller, trainer
+            torch.cuda.empty_cache()
+            gc.collect()
+
+            cfg.defrost()
+
+            distiller = torch.nn.DataParallel(distiller2.cuda())
+
+            cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
+            cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
+            cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
+
+            # cfg.SOLVER.INIT_TEMPERATURE = 1
+            # cfg.SOLVER.MAX_TEMPERATURE = 1
+            # cfg.SOLVER.MIN_TEMPERATURE = 1
+
+            cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
+            cfg.SOLVER.TRAINER = "scheduler"
+            cfg.freeze()
+
+            print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
+
+            if cfg.DISTILLER.TYPE != "NONE":
+                print(
+                    log_msg(
+                        "Extra parameters of {}: {}\033[0m".format(
+                            cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
+                        ),
+                        "INFO",
+                    )
+                )
+            trainer = trainer_dict["scheduler"](
+                experiment_name, distiller, train_loader, val_loader, cfg
+            )
+
+            trainer.train(resume=resume)
 
     else:
         # train

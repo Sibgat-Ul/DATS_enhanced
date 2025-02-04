@@ -461,6 +461,60 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
     ):
         super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
 
+        self.current_temperature = cfg.SOLVER.INIT_TEMPERATURE
+        self.initial_temperature = cfg.SOLVER.INIT_TEMPERATURE
+        self.min_temperature = cfg.SOLVER.MIN_TEMPERATURE
+        self.max_temperature = cfg.SOLVER.MAX_TEMPERATURE
+        self.max_epochs = cfg.SOLVER.EPOCHS
+        self.has_temp = True
+        self.adjust_temp = cfg.SOLVER.ADJUST_TEMPERATURE
+
+        try:
+            self.distiller.module.temperature = cfg.SOLVER.INIT_TEMPERATURE
+            self.has_temp = True
+
+        except AttributeError as e:
+            self.has_temp = False
+            print(e)
+            print("Skipping Temperature Update")
+
+    def update_temperature(self, current_epoch, loss_divergence):
+        progress = torch.tensor(current_epoch / self.max_epochs)
+        cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
+
+        if self.adjust_temp is True:
+            # log_divergence = torch.log(1 + torch.tensor(loss_divergence))
+            adaptive_scale = loss_divergence / (loss_divergence + 1)
+
+            if adaptive_scale > 1:
+                target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
+            else:
+                target_temperature = self.initial_temperature * cosine_factor
+        else:
+            target_temperature = self.initial_temperature * cosine_factor
+
+        target_temperature = torch.clamp(
+            target_temperature,
+            self.min_temperature,
+            self.max_temperature
+        )
+
+        momentum = 0.9
+        self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
+
+        if self.has_temp:
+            self.distiller.module.temperature = self.current_temperature
+
+    def get_temperature(self):
+        """
+        Retrieve current temperature value.
+
+        Returns:
+            float: Current dynamic temperature.
+        """
+
+        return self.current_temperature
+
     def train_iter(self, data, epoch, train_meters):
         self.optimizer.zero_grad()
         train_start_time = time.time()

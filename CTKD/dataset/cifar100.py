@@ -24,7 +24,7 @@ def get_data_folder():
     """
     return the path to store the data
     """
-    data_folder = 'your_cifar_data_path'
+    data_folder = '../../data/cifar100'
 
     if not os.path.isdir(data_folder):
         os.makedirs(data_folder)

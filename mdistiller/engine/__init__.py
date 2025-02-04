@@ -5,5 +5,5 @@ trainer_dict = {
     "crd": CRDTrainer,
     "ls": AugTrainer,
     "scheduler": DynamicTemperatureScheduler,
-    "ourAug": DynamicAugTrainer,
+    "ourls": DynamicAugTrainer,
 }
