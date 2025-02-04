@@ -15,6 +15,7 @@ from .VID import VID
 from .ReviewKD import ReviewKD
 from .DKD import DKD
 from .LUMINET import Luminet
+from .DTKD import DTKD
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -33,5 +34,6 @@ distiller_dict = {
     "VID": VID,
     "REVIEWKD": ReviewKD,
     "DKD": DKD,
-    "LUMINET": Luminet
+    "LUMINET": Luminet,
+    "DTKD": DTKD,
 }
