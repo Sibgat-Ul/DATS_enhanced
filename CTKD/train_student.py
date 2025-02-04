@@ -23,7 +23,6 @@ import torch.optim as optim
 from crd.criterion import CRDLoss
 from dataset.cifar100 import (get_cifar100_dataloaders,
                               get_cifar100_dataloaders_sample)
-from dataset.imagenet import get_imagenet_dataloader, imagenet_list
 from distiller_zoo import PKT, DistillKL, DKDloss, Similarity, VIDLoss, DistillKL_logit_stand
 from helper.loops import train_distill as train
 from helper.loops import validate
@@ -53,7 +52,7 @@ def parse_option():
 
     # optimization
     parser.add_argument('--learning_rate', type=float, default=0.1, help='learning rate')
-    parser.add_argument('--lr_decay_epochs', type=str, default='150,180,210', help='where to decay lr, can be a list')
+    parser.add_argument('--lr_decay_epochs', type=str, default='62, 75, 87', help='where to decay lr, can be a list')
     parser.add_argument('--lr_decay_rate', type=float, default=0.1, help='decay rate for learning rate')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
@@ -391,10 +390,6 @@ def main_worker(gpu, ngpus_per_node, opt):
         else:
             train_loader, val_loader = get_cifar100_dataloaders(batch_size=opt.batch_size,
                                                                         num_workers=opt.num_workers)
-    elif opt.dataset in imagenet_list:
-        train_loader, val_loader, train_sampler = get_imagenet_dataloader(dataset=opt.dataset, batch_size=opt.batch_size,
-                                                                        num_workers=opt.num_workers,
-                                                                        multiprocessing_distributed=opt.multiprocessing_distributed)
     else:
         raise NotImplementedError(opt.dataset)
 
