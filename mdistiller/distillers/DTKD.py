@@ -12,6 +12,7 @@ class DTKD(Distiller):
         self.beta = cfg.DTKD.BETA
         self.warmup = cfg.DTKD.WARMUP
         self.temperature = cfg.DTKD.T
+        self.cfg = cfg
 
     def forward_train(self, image, target, **kwargs):
         logits_student, _ = self.student(image)

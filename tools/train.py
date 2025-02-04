@@ -162,7 +162,7 @@ def main(cfg, resume, opts):
             if cfg.DISTILLER.TYPE != "NONE":
                 print(
                     log_msg(
-                        "Extra parameters of {}: {}\033[0m".format(
+                        "Trainer Extra parameters of {}: {}\033[0m".format(
                             cfg.DISTILLER.TYPE, distiller.module.get_extra_parameters()
                         ),
                         "INFO",
@@ -178,6 +178,7 @@ def main(cfg, resume, opts):
             cfg[cfg.DISTILLER.TYPE].WARMUP = 5
             cfg.SOLVER.TRAINER = "base"
             cfg.freeze()
+
             print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
 
             distiller = torch.nn.DataParallel(distiller1.cuda())
