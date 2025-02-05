@@ -145,13 +145,14 @@ def main(cfg, resume, opts):
 
             distiller = torch.nn.DataParallel(distiller2.cuda())
 
-            cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
-            cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
-            cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
-
-            # cfg.SOLVER.INIT_TEMPERATURE = 1
-            # cfg.SOLVER.MAX_TEMPERATURE = 1
-            # cfg.SOLVER.MIN_TEMPERATURE = 1
+            if cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
+                cfg.SOLVER.INIT_TEMPERATURE = 2
+                cfg.SOLVER.MAX_TEMPERATURE = 3
+                cfg.SOLVER.MIN_TEMPERATURE = 1
+            else:
+                cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
+                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
+                cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"
@@ -173,7 +174,8 @@ def main(cfg, resume, opts):
             )
 
             trainer.train(resume=resume)
-        elif  cfg.DISTILLER.TYPE == "DTKD":
+
+        elif cfg.DISTILLER.TYPE == "DTKD":
             cfg.SOLVER.TRAINER = "base"
             cfg.freeze()
             print(log_msg("Trainer: {}".format(cfg.SOLVER.TRAINER), "INFO"))
@@ -201,9 +203,15 @@ def main(cfg, resume, opts):
 
             cfg.defrost()
 
-            cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
-            cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
-            cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
+            if cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
+                cfg.SOLVER.INIT_TEMPERATURE = 2
+                cfg.SOLVER.MAX_TEMPERATURE = 3
+                cfg.SOLVER.MIN_TEMPERATURE = 1
+            else:
+                cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
+                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
+                cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
+
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"
             cfg.DISTILLER.TYPE = "kd"
@@ -228,6 +236,7 @@ def main(cfg, resume, opts):
             )
 
             trainer.train(resume=resume)
+
         else:
             cfg[cfg.DISTILLER.TYPE].WARMUP = 5
             cfg.SOLVER.TRAINER = "base"
@@ -261,13 +270,14 @@ def main(cfg, resume, opts):
 
             distiller = torch.nn.DataParallel(distiller2.cuda())
 
-            # cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
-            # cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
-            # cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
-
-            cfg.SOLVER.INIT_TEMPERATURE = 2
-            cfg.SOLVER.MAX_TEMPERATURE = 3
-            cfg.SOLVER.MIN_TEMPERATURE = 1
+            if cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
+                cfg.SOLVER.INIT_TEMPERATURE = 2
+                cfg.SOLVER.MAX_TEMPERATURE = 3
+                cfg.SOLVER.MIN_TEMPERATURE = 1
+            else:
+                cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
+                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
+                cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"

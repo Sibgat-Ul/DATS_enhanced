@@ -106,7 +106,7 @@ class DistillationWrapper(nn.Module):
 
         teacher_weights = cfg.DISTILLATION.TEACHER_WEIGHTS
         if teacher_weights:
-            checkpoint = torch.load(teacher_weights)["model"]
+            checkpoint = torch.load(teacher_weights)["model_state"]
             logger.info("Loaded initial weights of teacher model from: {}".format(teacher_weights))
             self.teacher_model.load_state_dict(checkpoint)
 
