@@ -392,9 +392,10 @@ class DynamicTemperatureScheduler(BaseTrainer):
         train_meters["top5"].update(acc5[0], batch_size)
 
         # print info
-        msg = "Epoch: {}/{} | Temp: {:.2f}| Time(train): {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
+        msg = "Epoch: {}/{} | TSL: {:.2f}| Temp: {:.2f}| Time: {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
             epoch,
             self.max_epochs,
+            loss_divergence,
             self.distiller.module.temperature,
             train_meters["training_time"].avg,
             train_meters["losses"].avg,
@@ -487,6 +488,8 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
             adaptive_scale = loss_divergence / (loss_divergence + 1)
 
             if adaptive_scale > 1:
+                if adaptive_scale > 2:
+                    adaptive_scale = 1.35
                 target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
             else:
                 target_temperature = self.initial_temperature * cosine_factor
@@ -543,9 +546,10 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
         train_meters["top5"].update(acc5[0], batch_size)
 
         # print info
-        msg = "Epoch: {}/{} | Temp: {:.2f}| Time(train): {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
+        msg = "Epoch: {}/{} | TSL: {:.2f}| Temp: {:.2f}| Time: {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
             epoch,
             self.max_epochs,
+            loss_divergence,
             self.distiller.module.temperature,
             train_meters["training_time"].avg,
             train_meters["losses"].avg,

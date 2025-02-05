@@ -250,6 +250,7 @@ def main(cfg, resume, opts):
             trainer = trainer_dict["base"](
                 experiment_name, distiller, train_loader, val_loader, cfg
             )
+
             trainer.train(resume=resume)
 
             del distiller, trainer
@@ -260,13 +261,13 @@ def main(cfg, resume, opts):
 
             distiller = torch.nn.DataParallel(distiller2.cuda())
 
-            cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
-            cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
-            cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
+            # cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
+            # cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
+            # cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
 
-            # cfg.SOLVER.INIT_TEMPERATURE = 1
-            # cfg.SOLVER.MAX_TEMPERATURE = 1
-            # cfg.SOLVER.MIN_TEMPERATURE = 1
+            cfg.SOLVER.INIT_TEMPERATURE = 2
+            cfg.SOLVER.MAX_TEMPERATURE = 3
+            cfg.SOLVER.MIN_TEMPERATURE = 1
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"

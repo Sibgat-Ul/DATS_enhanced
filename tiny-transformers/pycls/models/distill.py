@@ -86,8 +86,9 @@ class DistillationWrapper(nn.Module):
         self.offline = cfg.DISTILLATION.OFFLINE
 
         self.scheduler = cfg.DISTILLATION.SCHEDULE
-        self.min_temperature = cfg.DISTILLATION.LOGIT_TEMP
         self.temperature = cfg.DISTILLATION.LOGIT_TEMP
+
+        self.min_temperature = self.temperature
         self.max_temperature = self.min_temperature*2
         self.initial_temperature = self.max_temperature
         self.current_temperature = self.initial_temperature
@@ -105,7 +106,7 @@ class DistillationWrapper(nn.Module):
 
         teacher_weights = cfg.DISTILLATION.TEACHER_WEIGHTS
         if teacher_weights:
-            checkpoint = torch.load(teacher_weights)["model_state"]
+            checkpoint = torch.load(teacher_weights)["model"]
             logger.info("Loaded initial weights of teacher model from: {}".format(teacher_weights))
             self.teacher_model.load_state_dict(checkpoint)
 
