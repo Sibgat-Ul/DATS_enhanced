@@ -135,6 +135,7 @@ def main(cfg, resume, opts):
             trainer = trainer_dict["ls"](
                 experiment_name, distiller, train_loader, val_loader, cfg
             )
+
             trainer.train(resume=resume)
 
             del distiller, trainer
@@ -150,9 +151,9 @@ def main(cfg, resume, opts):
                 cfg.SOLVER.MAX_TEMPERATURE = 3
                 cfg.SOLVER.MIN_TEMPERATURE = 1
             else:
-                cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
+                cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
                 cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
-                cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
+                cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"
@@ -367,6 +368,11 @@ if __name__ == "__main__":
         cfg.SOLVER.MAX_TEMPERATURE = args.max_temperature
         cfg.SOLVER.INIT_TEMPERATURE = args.init_temperature
         cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
+
+        if cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
+            cfg.SOLVER.INIT_TEMPERATURE = 2
+            cfg.SOLVER.MAX_TEMPERATURE = 3
+            cfg.SOLVER.MIN_TEMPERATURE = 1
 
     if args.distiller_type == "MLKD":
         cfg.SOLVER.TRAINER = "ls"
