@@ -92,7 +92,7 @@ def parse_arguments():
     parser.add_argument('--batch-size', default=128, type=int, help='batch_size')
     parser.add_argument('--learning-rate', default=0.1, type=float, help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, help='SGD momentum')
-    parser.add_argument('--weight-decay', default=1e-4, type=float, help='SGD weight decay (default: 1e-4)')
+    parser.add_argument('--weight-decay', default=1e-4, type=float, help='SGD weight decay (default: 5e-4)')
     parser.add_argument('--teacher', default='resnet56', type=str, help='teacher student name')
     parser.add_argument('--student', '--model', default='resnet20', type=str, help='teacher student name')
     parser.add_argument('--teacher-checkpoint', default='', type=str, help='optinal pretrained checkpoint for teacher')
