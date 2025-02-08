@@ -259,6 +259,8 @@ class DynamicTemperatureScheduler(BaseTrainer):
             adaptive_scale = loss_divergence / (loss_divergence + 1)
 
             if adaptive_scale > 1:
+                if adaptive_scale > 2:
+                    adaptive_scale = 1.35
                 target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
             else:
                 target_temperature = self.initial_temperature * cosine_factor

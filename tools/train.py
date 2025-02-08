@@ -146,13 +146,17 @@ def main(cfg, resume, opts):
 
             distiller = torch.nn.DataParallel(distiller2.cuda())
 
-            if cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
+            if cfg.DISTILLER.STUDENT == "MobileNetV2" or cfg.DISTILLER.STUDENT == "ShuffleV2":
+                cfg.SOLVER.INIT_TEMPERATURE = 3
+                cfg.SOLVER.MAX_TEMPERATURE = 4
+                cfg.SOLVER.MIN_TEMPERATURE = 2
+            elif cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
                 cfg.SOLVER.INIT_TEMPERATURE = 2
                 cfg.SOLVER.MAX_TEMPERATURE = 3
                 cfg.SOLVER.MIN_TEMPERATURE = 1
             else:
                 cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
+                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
                 cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
@@ -204,13 +208,17 @@ def main(cfg, resume, opts):
 
             cfg.defrost()
 
-            if cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
+            if cfg.DISTILLER.STUDENT == "MobileNetV2" or cfg.DISTILLER.STUDENT == "ShuffleV2":
+                cfg.SOLVER.INIT_TEMPERATURE = 3
+                cfg.SOLVER.MAX_TEMPERATURE = 4
+                cfg.SOLVER.MIN_TEMPERATURE = 2
+            elif cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
                 cfg.SOLVER.INIT_TEMPERATURE = 2
                 cfg.SOLVER.MAX_TEMPERATURE = 3
                 cfg.SOLVER.MIN_TEMPERATURE = 1
             else:
                 cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
+                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
                 cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
@@ -270,14 +278,18 @@ def main(cfg, resume, opts):
             cfg.defrost()
 
             distiller = torch.nn.DataParallel(distiller2.cuda())
-
-            if cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
+            
+            if cfg.DISTILLER.STUDENT == "MobileNetV2" or cfg.DISTILLER.STUDENT == "ShuffleV2":
+                cfg.SOLVER.INIT_TEMPERATURE = 3
+                cfg.SOLVER.MAX_TEMPERATURE = 4
+                cfg.SOLVER.MIN_TEMPERATURE = 2
+            elif cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2":
                 cfg.SOLVER.INIT_TEMPERATURE = 2
                 cfg.SOLVER.MAX_TEMPERATURE = 3
                 cfg.SOLVER.MIN_TEMPERATURE = 1
             else:
                 cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE + 1
+                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
                 cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
