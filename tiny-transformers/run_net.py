@@ -27,6 +27,7 @@ def parse_args():
     help_s, choices = "Run mode", ["train", "test", "time"]
     parser.add_argument("--mode", help=help_s, choices=choices, required=True, type=str)
     help_s = "Config file location"
+    parser.add_argument("--epochs", help=help_s, default=100, type=int)
     parser.add_argument("--use_scheduler", help=help_s, action="store_true")
     parser.add_argument("--logit_stand", action="store_true")
     parser.add_argument("--cfg", help=help_s, required=True, type=str)
@@ -43,6 +44,7 @@ def main():
     mode = args.mode
     cfg.DISTILLATION.SCHEDULE = args.use_scheduler
     cfg.DISTILLATION.LOGIT_STANDARD = args.logit_stand
+    cfg.OPTIM.MAX_EPOCH = args.epochs
     config.load_cfg(args.cfg)
     cfg.merge_from_list(args.opts)
     if cfg.OUT_DIR is None:
