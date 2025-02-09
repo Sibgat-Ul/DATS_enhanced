@@ -121,6 +121,7 @@ class TrainMeter(object):
         self.num_top1_mis = 0
         self.num_top5_mis = 0
         self.num_samples = 0
+        self.temp = None
 
     def iter_tic(self):
         self.iter_timer.tic()
@@ -128,7 +129,7 @@ class TrainMeter(object):
     def iter_toc(self):
         self.iter_timer.toc()
 
-    def update_stats(self, top1_err, top5_err, cls_loss, inter_loss, logit_loss, loss, lr, mb_size):
+    def update_stats(self, top1_err, top5_err, cls_loss, inter_loss, logit_loss, loss, lr, mb_size, temp=None):
         self.mb_top1_err.add_value(top1_err)
         self.mb_top5_err.add_value(top5_err)
         self.cls_loss.add_value(cls_loss)
@@ -140,25 +141,44 @@ class TrainMeter(object):
         self.num_top5_mis += top5_err * mb_size
         self.loss_total += loss * mb_size
         self.num_samples += mb_size
+        if cfg.DISTILLATION.SCHEDULE:
+            self.temp = temp
 
     def get_iter_stats(self, cur_epoch, cur_iter):
         cur_iter_total = cur_epoch * self.epoch_iters + cur_iter + 1
         eta_sec = self.iter_timer.average_time * (self.max_iter - cur_iter_total)
         mem_usage = gpu_mem_usage()
-        stats = {
-            "epoch": "{}/{}".format(cur_epoch + 1, cfg.OPTIM.MAX_EPOCH),
-            "iter": "{}/{}".format(cur_iter + 1, self.epoch_iters),
-            "total_iter": cur_iter_total,
-            "time_avg": self.iter_timer.average_time,
-            "time_diff": self.iter_timer.diff,
-            "eta": time_string(eta_sec),
-            "top1_err": self.mb_top1_err.get_win_median(),
-            "top5_err": self.mb_top5_err.get_win_median(),
-            "cls_loss": self.cls_loss.get_win_median(),
-            "loss": self.loss.get_win_median(),
-            "lr": self.lr,
-            "mem": int(np.ceil(mem_usage)),
-        }
+        if self.temp:
+            stats = {
+                "epoch": "{}/{}".format(cur_epoch + 1, cfg.OPTIM.MAX_EPOCH),
+                "iter": "{}/{}".format(cur_iter + 1, self.epoch_iters),
+                "temp": "{}".format(self.temp),
+                "total_iter": cur_iter_total,
+                "time_avg": self.iter_timer.average_time,
+                "time_diff": self.iter_timer.diff,
+                "eta": time_string(eta_sec),
+                "top1_err": self.mb_top1_err.get_win_median(),
+                "top5_err": self.mb_top5_err.get_win_median(),
+                "cls_loss": self.cls_loss.get_win_median(),
+                "loss": self.loss.get_win_median(),
+                "lr": self.lr,
+                "mem": int(np.ceil(mem_usage)),
+            }
+        else:
+            stats = {
+                "epoch": "{}/{}".format(cur_epoch + 1, cfg.OPTIM.MAX_EPOCH),
+                "iter": "{}/{}".format(cur_iter + 1, self.epoch_iters),
+                "total_iter": cur_iter_total,
+                "time_avg": self.iter_timer.average_time,
+                "time_diff": self.iter_timer.diff,
+                "eta": time_string(eta_sec),
+                "top1_err": self.mb_top1_err.get_win_median(),
+                "top5_err": self.mb_top5_err.get_win_median(),
+                "cls_loss": self.cls_loss.get_win_median(),
+                "loss": self.loss.get_win_median(),
+                "lr": self.lr,
+                "mem": int(np.ceil(mem_usage)),
+            }
         if cfg.DISTILLATION.ENABLE_INTER:
             stats["inter_distill_loss"] = self.inter_loss.get_win_median()
         if cfg.DISTILLATION.ENABLE_LOGIT:

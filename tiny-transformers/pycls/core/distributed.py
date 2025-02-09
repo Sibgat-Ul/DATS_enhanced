@@ -100,7 +100,7 @@ def multi_proc_run(num_proc, fun):
         )
         main_port = random.randint(cfg.PORT_RANGE[0], cfg.PORT_RANGE[1])
         job = executor.submit(SubmititRunner(main_port, fun, cfg))
-        print("Submitted job_id {} with out_dir: {}".format(job.job_id, cfg.OUT_DIR))
+        # print("Submitted job_id {} with out_dir: {}".format(job.job_id, cfg.OUT_DIR))
         if not use_slurm:
             job.wait()
     elif num_proc > 1:

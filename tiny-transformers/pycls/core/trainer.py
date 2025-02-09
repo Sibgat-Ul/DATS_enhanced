@@ -41,10 +41,10 @@ def setup_env():
     logging.setup_logging()
     version = [torch.__version__, torch.version.cuda, torch.backends.cudnn.version()]
     logger.info("PyTorch Version: torch={}, cuda={}, cudnn={}".format(*version))
-    env = "".join([f"{key}: {value}\n" for key, value in sorted(os.environ.items())])
-    logger.info(f"os.environ:\n{env}")
-    logger.info("Config:\n{}".format(cfg)) if cfg.VERBOSE else ()
-    logger.info(logging.dump_log_data(cfg, "cfg", None))
+    # env = "".join([f"{key}: {value}\n" for key, value in sorted(os.environ.items())])
+    # logger.info(f"os.environ:\n{env}")
+    # logger.info("Config:\n{}".format(cfg)) if cfg.VERBOSE else ()
+    # logger.info(logging.dump_log_data(cfg, "cfg", None))
     np.random.seed(cfg.RNG_SEED)
     torch.manual_seed(cfg.RNG_SEED)
     random.seed(cfg.RNG_SEED)
@@ -53,7 +53,8 @@ def setup_env():
 
 def setup_model(setup_ema=True):
     model = builders.build_model()
-    logger.info("Model:\n{}".format(model)) if cfg.VERBOSE else ()
+    model.max_epoch = cfg.OPTIM.MAX_EPOCH
+    # logger.info("Model:\n{}".format(model)) if cfg.VERBOSE else ()
     logger.info(logging.dump_log_data(net.unwrap_model(model).complexity(), "complexity"))
     cur_device = torch.cuda.current_device()
     model = model.cuda(device=cur_device)
@@ -116,7 +117,10 @@ def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, mete
         loss_cls, loss_inter, loss_logit, loss, top1_err, top5_err = loss_cls.item(), loss_inter.item(), loss_logit.item(), loss.item(), top1_err.item(), top5_err.item()
         meter.iter_toc()
         mb_size = inputs.size(0) * cfg.NUM_GPUS
-        meter.update_stats(top1_err, top5_err, loss_cls, loss_inter, loss_logit, loss, lr, mb_size)
+        if cfg.DISTILLATION.SCHEDULE:
+            meter.update_stats(top1_err, top5_err, loss_cls, loss_inter, loss_logit, loss, lr, mb_size, model.current_temperature.item())
+        else:
+            meter.update_stats(top1_err, top5_err, loss_cls, loss_inter, loss_logit, loss, lr, mb_size)
         meter.log_iter_stats(cur_epoch, cur_iter)
         meter.iter_tic()
     meter.log_epoch_stats(cur_epoch)

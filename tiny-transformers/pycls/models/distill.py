@@ -52,25 +52,6 @@ def logit_distill_loss(logits_t, logits_s, loss_type, temperature, logit_standar
 
     return distillation_loss
 
-
-class DynamicTemperatureScheduler(nn.Module):
-    def __init__(
-            self,
-            initial_temperature=8.0,
-            min_temperature=4.0,
-            max_temperature=8,
-            max_epoch=50,
-            warmup=20,
-    ):
-        super(DynamicTemperatureScheduler, self).__init__()
-
-        self.current_temperature = initial_temperature
-        self.initial_temperature = initial_temperature
-        self.min_temperature = min_temperature
-        self.max_temperature = max_temperature
-        self.max_epoch = max_epoch
-        self.warmup = warmup
-
 class DistillationWrapper(nn.Module):
 
     def __init__(self, student_model, teacher_mode):
@@ -185,8 +166,11 @@ class DistillationWrapper(nn.Module):
                 feat_s = F.interpolate(feat_s, dsize, mode='bilinear', align_corners=False)
                 loss_inter = loss_inter + inter_distill_loss(feat_t, feat_s, self.inter_transform_type)
 
-        loss_logit = logit_distill_loss(logits_t, logits_s, self.logit_loss_type, self.current_temperature if self.scheduler else self.temperature, self.logit_standard,
-                                        extra_weight_in=self.extra_weight_in) if self.enable_logit else x.new_tensor(
+        loss_logit = logit_distill_loss(
+            logits_t, logits_s, self.logit_loss_type,
+            self.current_temperature if self.scheduler else self.temperature,
+            self.logit_standard,
+            extra_weight_in=self.extra_weight_in) if self.enable_logit else x.new_tensor(
             0.0)
 
         t_loss = F.cross_entropy(logits_t, target)
