@@ -252,7 +252,10 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
     def update_temperature(self, current_epoch, loss_divergence):
         progress = torch.tensor(current_epoch / self.max_epochs)
-        cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
+        if self.cfg.DISTILLER.TYPE == "MLKD":
+            cosine_factor = 0.5 * (1 + torch.cos(1.5*torch.pi * progress))
+        else:
+            cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
 
         if self.adjust_temp is True:
             # log_divergence = torch.log(1 + torch.tensor(loss_divergence))
