@@ -146,7 +146,10 @@ def main(cfg, resume, opts):
 
             distiller = torch.nn.DataParallel(distiller2.cuda())
 
-            if cfg.DISTILLER.STUDENT == "MobileNetV2" or cfg.DISTILLER.STUDENT == "ShuffleV2":
+            if (cfg.DISTILLER.STUDENT == "MobileNetV2"
+                    or cfg.DISTILLER.STUDENT == "ShuffleV2"
+                    or cfg.DISTILLER.STUDENT == "resnet32"
+                    or cfg.DISTILLER.STUDENT == "resnet20"):
                 cfg.SOLVER.INIT_TEMPERATURE = 3
                 cfg.SOLVER.MAX_TEMPERATURE = 4
                 cfg.SOLVER.MIN_TEMPERATURE = 2
