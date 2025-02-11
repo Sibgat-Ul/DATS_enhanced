@@ -42,11 +42,11 @@ def parse_args():
 def main():
     args = parse_args()
     mode = args.mode
+    config.load_cfg(args.cfg)
+    cfg.merge_from_list(args.opts)
     cfg.DISTILLATION.SCHEDULE = args.use_scheduler
     cfg.DISTILLATION.LOGIT_STANDARD = args.logit_stand
     cfg.OPTIM.MAX_EPOCH = args.epochs
-    config.load_cfg(args.cfg)
-    cfg.merge_from_list(args.opts)
     if cfg.OUT_DIR is None:
         out_dir = os.path.join('work_dirs', os.path.splitext(os.path.basename(args.cfg))[0])
         cfg.OUT_DIR = out_dir
