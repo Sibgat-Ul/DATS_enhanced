@@ -173,9 +173,10 @@ class DistillationWrapper(nn.Module):
             extra_weight_in=self.extra_weight_in) if self.enable_logit else x.new_tensor(
             0.0)
 
-        t_loss = F.cross_entropy(logits_t, target)
-        s_loss = F.cross_entropy(logits_s, target)
-        loss_divergence = t_loss.item() + s_loss.item()
-        self.update_temperature(epoch, loss_divergence)
+        if self.scheduler:
+            t_loss = F.cross_entropy(logits_t, target)
+            s_loss = F.cross_entropy(logits_s, target)
+            loss_divergence = t_loss.item() + s_loss.item()
+            self.update_temperature(epoch, loss_divergence)
 
         return loss_inter, loss_logit
