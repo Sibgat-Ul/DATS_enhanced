@@ -140,6 +140,7 @@ class DistillationWrapper(nn.Module):
 
     def guidance_loss(self, x, offline_feats, epoch, target):
         logits_s = self.student_model.distill_logits
+        print(logits_s)
         feats_s = self.student_model.features
 
         if self.offline:
