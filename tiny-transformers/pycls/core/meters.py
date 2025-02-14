@@ -26,23 +26,12 @@ def time_string(seconds):
     mins, secs = divmod(rem, 60)
     return "{0:02},{1:02}:{2:02}:{3:02}".format(days, hrs, mins, secs)
 
-def accuracy(output, target, topk=(1,5)):
-    with torch.no_grad():
-        maxk = max(topk)
-        batch_size = target.size(0)
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target.reshape(1, -1).expand_as(pred))
-        res = []
-        for k in topk:
-            correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
-            res.append(correct_k.mul_(100.0 / batch_size))
-        return res
 
 def topk_errors(preds, labels, ks):
     if isinstance(preds, list):
         preds = preds[0] + preds[1]
     return _topk_errors(preds, labels, ks)
+
 
 def _topk_errors(preds, labels, ks):
     err_str = "Batch dim of predictions and labels must match"
@@ -55,7 +44,7 @@ def _topk_errors(preds, labels, ks):
     rep_max_k_labels = labels.view(1, -1).expand_as(top_max_k_inds)
     top_max_k_correct = top_max_k_inds.eq(rep_max_k_labels)
     topks_correct = [top_max_k_correct[:k, :].reshape(-1).float().sum() for k in ks]
-    return [(x / preds.size(0)) * 100.0 for x in topks_correct]
+    return [(1.0 - x / preds.size(0)) * 100.0 for x in topks_correct]
 
 
 def gpu_mem_usage():
@@ -168,8 +157,8 @@ class TrainMeter(object):
                 "time_avg": self.iter_timer.average_time,
                 "time_diff": self.iter_timer.diff,
                 "eta": time_string(eta_sec),
-                "top1_acc": self.mb_top1_err.get_win_median(),
-                "top5_acc": self.mb_top5_err.get_win_median(),
+                "top1_err": self.mb_top1_err.get_win_median(),
+                "top5_err": self.mb_top5_err.get_win_median(),
                 "cls_loss": self.cls_loss.get_win_median(),
                 "loss": self.loss.get_win_median(),
                 "lr": self.lr,
@@ -183,8 +172,8 @@ class TrainMeter(object):
                 "time_avg": self.iter_timer.average_time,
                 "time_diff": self.iter_timer.diff,
                 "eta": time_string(eta_sec),
-                "top1_acc": self.mb_top1_err.get_win_median(),
-                "top5_acc": self.mb_top5_err.get_win_median(),
+                "top1_err": self.mb_top1_err.get_win_median(),
+                "top5_err": self.mb_top5_err.get_win_median(),
                 "cls_loss": self.cls_loss.get_win_median(),
                 "loss": self.loss.get_win_median(),
                 "lr": self.lr,
@@ -214,8 +203,8 @@ class TrainMeter(object):
             "time_avg": self.iter_timer.average_time,
             "time_epoch": self.iter_timer.average_time * self.epoch_iters,
             "eta": time_string(eta_sec),
-            "top1_acc": top1_err,
-            "top5_acc": top5_err,
+            "top1_err": top1_err,
+            "top5_err": top5_err,
             "loss": avg_loss,
             "lr": self.lr,
             "mem": int(np.ceil(mem_usage)),
@@ -238,26 +227,22 @@ class TestMeter(object):
         self.iter_timer = Timer()
         self.mb_top1_err = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_top5_err = ScalarMeter(cfg.LOG_PERIOD)
-        self.min_top1_err = 0.0
-        self.min_top5_err = 0.0
+        self.min_top1_err = 100.0
+        self.min_top5_err = 100.0
         self.num_top1_mis = 0
         self.num_top5_mis = 0
         self.num_samples = 0
-        self.top1_acc = 0
-        self.top5_acc = 0
 
     def reset(self, min_errs=False):
         if min_errs:
-            self.min_top1_err = 0.0
-            self.min_top5_err = 0.0
+            self.min_top1_err = 100.0
+            self.min_top5_err = 100.0
         self.iter_timer.reset()
         self.mb_top1_err.reset()
         self.mb_top5_err.reset()
         self.num_top1_mis = 0
         self.num_top5_mis = 0
         self.num_samples = 0
-        self.top1_acc = 0
-        self.top5_acc = 0
 
     def iter_tic(self):
         self.iter_timer.tic()
@@ -279,8 +264,8 @@ class TestMeter(object):
             "iter": "{}/{}".format(cur_iter + 1, self.epoch_iters),
             "time_avg": self.iter_timer.average_time,
             "time_diff": self.iter_timer.diff,
-            "top1_acc": self.mb_top1_err.get_win_median(),
-            "top5_acc": self.mb_top5_err.get_win_median(),
+            "top1_err": self.mb_top1_err.get_win_median(),
+            "top5_err": self.mb_top5_err.get_win_median(),
             "mem": int(np.ceil(mem_usage)),
         }
         return iter_stats
@@ -300,10 +285,10 @@ class TestMeter(object):
             "epoch": "{}/{}".format(cur_epoch + 1, cfg.OPTIM.MAX_EPOCH),
             "time_avg": self.iter_timer.average_time,
             "time_epoch": self.iter_timer.average_time * self.epoch_iters,
-            "top1_acc": top1_err,
-            "top5_acc": top5_err,
-            "min_top1_acc": self.min_top1_err,
-            "min_top5_acc": self.min_top5_err,
+            "top1_err": top1_err,
+            "top5_err": top5_err,
+            "min_top1_err": self.min_top1_err,
+            "min_top5_err": self.min_top5_err,
             "mem": int(np.ceil(mem_usage)),
         }
         return stats
