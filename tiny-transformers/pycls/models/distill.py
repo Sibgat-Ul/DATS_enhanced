@@ -99,14 +99,15 @@ class DistillationWrapper(nn.Module):
 
     def update_temperature(self, current_epoch, loss_divergence):
         progress = torch.tensor(current_epoch / self.max_epoch)
-        cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
+        cosine_factor = 0.5 * (1 + torch.cos(2*torch.pi * progress))
         # log_loss = torch.log(torch.tensor(loss_divergence))
         adaptive_scale = loss_divergence / (loss_divergence + 1)
 
-        if adaptive_scale > 1:
-            target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
-        else:
-            target_temperature = self.initial_temperature * cosine_factor
+        # if adaptive_scale > 1:
+        #     target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
+        # else:
+        #     target_temperature = self.initial_temperature * cosine_factor
+        target_temperature = self.initial_temperature * cosine_factor
 
         target_temperature = torch.clamp(
             target_temperature,
