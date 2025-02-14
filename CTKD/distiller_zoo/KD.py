@@ -28,11 +28,15 @@ class DistillKL_logit_stand(nn.Module):
     def __init__(self):
         super(DistillKL_logit_stand, self).__init__()
 
-    def forward(self, y_s, y_t, temp):
+    def forward(self, y_s, y_t, temp, normal=False):
         T = temp.cuda()
         
         KD_loss = 0
-        KD_loss += nn.KLDivLoss(reduction='batchmean')(F.log_softmax(normalize(y_s)/T, dim=1),
-                                F.softmax(normalize(y_t)/T, dim=1)) * T * T
+        if normal:
+            KD_loss += nn.KLDivLoss(reduction='batchmean')(F.log_softmax(normalize(y_s) / T, dim=1),
+                                                           F.softmax(normalize(y_t) / T, dim=1)) * T * T
+        else:
+            KD_loss += nn.KLDivLoss(reduction='batchmean')(F.log_softmax(y_s / T, dim=1),
+                                                           F.softmax(y_t / T, dim=1)) * T * T
         
         return KD_loss
