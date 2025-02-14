@@ -261,7 +261,7 @@ def main_worker(gpu, ngpus_per_node, opt):
         dist.init_process_group(backend=dist_backend, init_method=opt.dist_url,
                                 world_size=opt.world_size, rank=opt.rank)
         opt.batch_size = int(opt.batch_size / ngpus_per_node)
-        opt.num_workers = int((opt.num_workers + ngpus_per_node - 1) / ngpus_per_node)
+        opt.num_workers = 3
 
     if opt.deterministic:
         torch.manual_seed(27)
