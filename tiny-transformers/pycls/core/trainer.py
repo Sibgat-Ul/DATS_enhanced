@@ -121,10 +121,11 @@ def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, mete
             meter.update_stats(top1_err, top5_err, loss_cls, loss_inter, loss_logit, loss, lr, mb_size, model.current_temperature.item())
         else:
             meter.update_stats(top1_err, top5_err, loss_cls, loss_inter, loss_logit, loss, lr, mb_size)
-        if (cur_epoch + 1) % 25:
+        if (cur_epoch + 1) % 25 == 0:
             meter.log_iter_stats(cur_epoch, cur_iter)
-        meter.iter_tic()
-    if (cur_epoch+1) % 25:
+            meter.iter_tic()
+
+    if (cur_epoch+1) % 25 == 0:
         meter.log_epoch_stats(cur_epoch)
     scheduler.step(cur_epoch + 1)
 
