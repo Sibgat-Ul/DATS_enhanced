@@ -183,9 +183,9 @@ def train_model():
         ema_err = 100.0
         if cfg.OPTIM.EMA_UPDATE_PERIOD > 0:
             test_epoch(test_loader, ema, ema_meter, cur_epoch)
-            ema_err = ema_meter.get_epoch_stats(cur_epoch)["top1_err"]
-        file = cp.save_checkpoint(model, ema, optimizer, cur_epoch, test_err, ema_err)
-        logger.info("Wrote checkpoint to: {}".format(file))
+        ema_err = ema_meter.get_epoch_stats(cur_epoch)["top1_err"]
+    file = cp.save_checkpoint(model, ema, optimizer, cur_epoch, test_err, ema_err)
+    logger.info("Wrote checkpoint to: {}".format(file))
 
 
 def test_model():
