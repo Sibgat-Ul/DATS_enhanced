@@ -121,10 +121,12 @@ def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, mete
             meter.update_stats(top1_err, top5_err, loss_cls, loss_inter, loss_logit, loss, lr, mb_size, model.current_temperature.item())
         else:
             meter.update_stats(top1_err, top5_err, loss_cls, loss_inter, loss_logit, loss, lr, mb_size)
-        meter.log_iter_stats(cur_epoch, cur_iter)
-        meter.iter_tic()
+        if (cur_epoch + 1) % 25 == 0:
+            meter.log_iter_stats(cur_epoch, cur_iter)
+            meter.iter_tic()
 
-    meter.log_epoch_stats(cur_epoch)
+    if (cur_epoch+1) % 25 == 0:
+        meter.log_epoch_stats(cur_epoch)
     scheduler.step(cur_epoch + 1)
 
 
@@ -181,7 +183,7 @@ def train_model():
         ema_err = 100.0
         if cfg.OPTIM.EMA_UPDATE_PERIOD > 0:
             test_epoch(test_loader, ema, ema_meter, cur_epoch)
-        ema_err = ema_meter.get_epoch_stats(cur_epoch)["top1_err"]
+            ema_err = ema_meter.get_epoch_stats(cur_epoch)["top1_err"]
     file = cp.save_checkpoint(model, ema, optimizer, cur_epoch, test_err, ema_err)
     logger.info("Wrote checkpoint to: {}".format(file))
 
