@@ -365,7 +365,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--reuse", action="store_true")
     # parser.add_argument("--wandb", action="store_true")
-    parser.add_argument("--curve_shape", type=int, default=1)
+    parser.add_argument("--curve_shape", type=float, default=1)
 
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 

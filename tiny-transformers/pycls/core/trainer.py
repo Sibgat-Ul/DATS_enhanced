@@ -198,7 +198,6 @@ def test_model():
     test_meter = meters.TestMeter(len(test_loader))
     test_epoch(test_loader, model, test_meter, 0)
 
-
 def time_model():
     setup_env()
     model = setup_model(setup_ema=False)
