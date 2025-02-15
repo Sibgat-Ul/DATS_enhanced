@@ -342,6 +342,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("training for knowledge distillation.")
 
     parser.add_argument("--exp_name", type=str, help="experiment name", default="DTAD_Experiment")
+    parser.add_argument("--project_name", type=str, help="experiment name", default="DTAD_Experiment")
     parser.add_argument("--cfg", type=str, default="")
     parser.add_argument("--dataset", type=str, default="cifar100")
     parser.add_argument("--distiller_type", type=str, default="NONE")
@@ -364,7 +365,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_epochs", type=int, default=100)
 
     parser.add_argument("--reuse", action="store_true")
-    # parser.add_argument("--wandb", action="store_true")
+    parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--curve_shape", type=float, default=1)
 
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
