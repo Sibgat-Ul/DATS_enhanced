@@ -154,8 +154,8 @@ def main(cfg, resume, opts):
                     cfg.DISTILLER.STUDENT == "MobileNetV2" or cfg.DISTILLER.STUDENT == "ShuffleV2" or
                     cfg.DISTILLER.STUDENT == "ShuffleV1"
             ):
-                cfg.SOLVER.INIT_TEMPERATURE = 3
-                cfg.SOLVER.MAX_TEMPERATURE = 3
+                cfg.SOLVER.INIT_TEMPERATURE = 10
+                cfg.SOLVER.MAX_TEMPERATURE = 10
                 cfg.SOLVER.MIN_TEMPERATURE = 1
             else:
                 cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
@@ -364,7 +364,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_epochs", type=int, default=100)
 
     parser.add_argument("--reuse", action="store_true")
-    parser.add_argument("--wandb", action="store_true")
+    # parser.add_argument("--wandb", action="store_true")
+    parser.add_argument("--curve_shape", type=int, default=1)
 
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
