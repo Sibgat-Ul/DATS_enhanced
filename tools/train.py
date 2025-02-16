@@ -409,6 +409,7 @@ if __name__ == "__main__":
             cfg.DKD.T = args.base_temp
 
         elif cfg.DISTILLER.TYPE == 'MLKD':
+            cfg.SOLVER.TRAINER = "ls"
             cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
             cfg.KD.TEMPERATURE = args.base_temp
 
