@@ -158,9 +158,9 @@ def main(cfg, resume, opts):
                 cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.MAX_TEMPERATURE
                 cfg.SOLVER.MIN_TEMPERATURE = cfg.SOLVER.MIN_TEMPERATURE
             else:
-                cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
-                cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
+                cfg.SOLVER.INIT_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
+                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.MAX_TEMPERATURE
+                cfg.SOLVER.MIN_TEMPERATURE = cfg.SOLVER.MIN_TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"
@@ -386,7 +386,7 @@ if __name__ == "__main__":
         cfg.SOLVER.INIT_TEMPERATURE = args.init_temperature
         cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
 
-        if cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2" and cfg.DISTILLER.TYPE != "MLKD":
+        if (cfg.DISTILLER.STUDENT == "resnet8x4" or cfg.DISTILLER.STUDENT == "wrn_16_2") and cfg.DISTILLER.TYPE != "MLKD":
             cfg.SOLVER.INIT_TEMPERATURE = 2
             cfg.SOLVER.MAX_TEMPERATURE = 3
             cfg.SOLVER.MIN_TEMPERATURE = 1
