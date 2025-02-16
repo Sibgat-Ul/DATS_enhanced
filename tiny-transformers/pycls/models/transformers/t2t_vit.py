@@ -13,6 +13,7 @@ import math
 import torch
 import numpy as np
 import torch.nn as nn
+from timm.models.layers import trunc_normal_
 
 from ..build import MODEL
 from pycls.core.config import cfg
@@ -74,7 +75,7 @@ class PerformerLayer(nn.Module):
             out_channels = in_channels
         self.in_channels = in_channels
         self.out_channels = out_channels
-        
+
         self.norm1 = layernorm(in_channels)
         self.attn = PerformerAttention(
             in_channels=in_channels,
@@ -178,7 +179,8 @@ class T2TViT(BaseTransformerModel):
         for stride in cfg.T2T.STRIDE:
             feat_size = feat_size // stride
         self.num_patches = feat_size ** 2
-        pe = self._get_position_embedding(self.num_patches + 1, self.hidden_dim)
+        self.num_tokens = 1 + cfg.DISTILLATION.ENABLE_LOGIT
+        pe = self._get_position_embedding(self.num_patches + self.num_tokens, self.hidden_dim)
         self.pos_embed = nn.Parameter(pe, requires_grad=False)
         self.pe_dropout = nn.Dropout(self.drop_rate)
 
@@ -194,14 +196,29 @@ class T2TViT(BaseTransformerModel):
         self.initialize_hooks(self.layers)
 
         self.norm = layernorm(self.hidden_dim)
-        self.head = nn.Linear(self.hidden_dim, self.num_classes)
-
-        nn.init.normal_(self.cls_token, std=.02)
         self.apply(self._init_weights)
+
+        self.head = nn.Linear(self.hidden_dim, self.num_classes)
+        nn.init.zeros_(self.head.weight)
+        nn.init.constant_(self.head.bias, 0)
+        # nn.init.normal_(self.cls_token, std=.02)
+
+        self.num_tokens = 1 + cfg.DISTILLATION.ENABLE_LOGIT
+        trunc_normal_(self.cls_token, std=.02)
+        trunc_normal_(self.pos_embed, std=.02)
+        self.distill_logits = None
+        self.distill_token = None
+        self.distill_head = None
+        if cfg.DISTILLATION.ENABLE_LOGIT:
+            self.distill_token = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
+            self.distill_head = nn.Linear(self.hidden_dim, self.num_classes)
+            nn.init.zeros_(self.distill_head.weight)
+            nn.init.constant_(self.distill_head.bias, 0)
+            trunc_normal_(self.distill_token, std=.02)
 
     def _feature_hook(self, module, inputs, outputs):
         feat_size = int(self.num_patches ** 0.5)
-        x = outputs[:, 1:].view(outputs.size(0), feat_size, feat_size, self.hidden_dim)
+        x = outputs[:, self.num_tokens:].view(outputs.size(0), feat_size, feat_size, self.hidden_dim)
         x = x.permute(0, 3, 1, 2).contiguous()
         self.features.append(x)
 
@@ -227,13 +244,26 @@ class T2TViT(BaseTransformerModel):
 
     def forward(self, x):
         x = self.t2t_module(x)
-        x = torch.cat([self.cls_token.repeat(x.size(0), 1, 1), x], dim=1)
-        x = self.pe_dropout(x + self.pos_embed)
 
+        if self.num_tokens == 1:
+            x = torch.cat([self.cls_token.repeat(x.size(0), 1, 1), x], dim=1)
+        else:
+            x = torch.cat([self.cls_token.repeat(x.size(0), 1, 1), self.distill_token.repeat(x.size(0), 1, 1), x],
+                          dim=1)
+        x = self.pe_dropout(x + self.pos_embed)
         for layer in self.layers:
             x = layer(x)
 
         x = self.norm(x)
-        x = self.head(x[:, 0])
+        logits = self.head(x[:, 0])
 
-        return x
+        if self.num_tokens == 1:
+            return logits
+
+        self.distill_logits = None
+        self.distill_logits = self.distill_head(x[:, 1])
+
+        if self.training:
+            return logits
+        else:
+            return (logits + self.distill_logits) / 2

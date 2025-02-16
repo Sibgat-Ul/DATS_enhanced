@@ -139,6 +139,18 @@ class PiT(BaseTransformerModel):
         trunc_normal_(self.cls_token, std=.02)
         self.apply(self._init_weights)
 
+        self.num_tokens = 1 + cfg.DISTILLATION.ENABLE_LOGIT
+        self.distill_logits = None
+        self.distill_token = None
+        self.distill_head = None
+        if cfg.DISTILLATION.ENABLE_LOGIT:
+            print(self.hidden_dim)
+            self.distill_token = nn.Parameter(torch.zeros(1, 1, self.hidden_dim[0]))
+            self.distill_head = nn.Linear(self.hidden_dim[0], self.num_classes)
+            nn.init.zeros_(self.distill_head.weight)
+            nn.init.constant_(self.distill_head.bias, 0)
+            trunc_normal_(self.distill_token, std=.02)
+
     def _feature_hook(self, module, inputs, outputs):
         token_length, h, w = module.shape_info
         x = outputs[:, token_length:]
@@ -153,9 +165,17 @@ class PiT(BaseTransformerModel):
     def forward_features(self, x):
         x = self.patch_embed(x)
 
+        if self.num_tokens == 1:
+            cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
+            print(cls_tokens.shape)
+            print((torch.cat([self.cls_token.repeat(x.size(0), 1, 1), x], dim=1)).shape)
+        else:
+            x = torch.cat([self.cls_token.repeat(x.size(0), 1, 1), self.distill_token.repeat(x.size(0), 1, 1), x],
+                          dim=1)
+            cls_tokens = torch.cat([self.cls_token.expand(x.shape[0], -1, -1), self.distill_token.repeat(x.size(0), 1, 1), x], dim=1)
+
         pos_embed = self.pos_embed
         x = self.pos_drop(x + pos_embed)
-        cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
 
         for stage in range(len(self.pools)):
             x, cls_tokens = self.transformers[stage](x, cls_tokens)
@@ -169,4 +189,14 @@ class PiT(BaseTransformerModel):
     def forward(self, x):
         cls_token = self.forward_features(x)
         cls_token = self.head(cls_token[:, 0])
-        return cls_token
+
+        if self.num_tokens == 1:
+            return cls_token
+
+        self.distill_logits = None
+        self.distill_logits = self.distill_head(x[:, 1])
+
+        if self.training:
+            return cls_token
+        else:
+            return (cls_token + self.distill_logits) / 2

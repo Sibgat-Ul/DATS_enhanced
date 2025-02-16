@@ -50,10 +50,10 @@ class DeiT(BaseTransformerModel):
         trunc_normal_(self.cls_token, std=.02)
         trunc_normal_(self.pos_embed, std=.02)
         self.distill_logits = None
-
         self.distill_token = None
         self.distill_head = None
         if cfg.DISTILLATION.ENABLE_LOGIT:
+            print(self.hidden_dim)
             self.distill_token = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
             self.distill_head = nn.Linear(self.hidden_dim, self.num_classes)
             nn.init.zeros_(self.distill_head.weight)
@@ -77,12 +77,14 @@ class DeiT(BaseTransformerModel):
 
     def forward(self, x):
         x = self.patch_embed(x)
+
         if self.num_tokens == 1:
             x = torch.cat([self.cls_token.repeat(x.size(0), 1, 1), x], dim=1)
+            print(x.shape)
         else:
             x = torch.cat([self.cls_token.repeat(x.size(0), 1, 1), self.distill_token.repeat(x.size(0), 1, 1), x], dim=1)
         x = self.pe_dropout(x + self.pos_embed)
-        
+        print(x.shape)
         for layer in self.layers:
             x = layer(x)
 
