@@ -154,9 +154,9 @@ def main(cfg, resume, opts):
                     cfg.DISTILLER.STUDENT == "MobileNetV2" or cfg.DISTILLER.STUDENT == "ShuffleV2" or
                     cfg.DISTILLER.STUDENT == "ShuffleV1"
             ):
-                cfg.SOLVER.INIT_TEMPERATURE = 10
-                cfg.SOLVER.MAX_TEMPERATURE = 10
-                cfg.SOLVER.MIN_TEMPERATURE = 1
+                cfg.SOLVER.INIT_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
+                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.MAX_TEMPERATURE
+                cfg.SOLVER.MIN_TEMPERATURE = cfg.SOLVER.MIN_TEMPERATURE
             else:
                 cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
                 cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE

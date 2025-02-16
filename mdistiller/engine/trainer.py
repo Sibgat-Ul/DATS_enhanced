@@ -254,13 +254,9 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
     def update_temperature(self, current_epoch, loss_divergence):
         progress = torch.tensor(current_epoch / self.max_epochs)
-        if self.cfg.DISTILLER.TYPE == "MLKD":
-            cosine_factor = 0.5 * (1 + torch.cos(0.5 * torch.pi * progress))
-        else:
-            cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape * torch.pi * progress))
+        cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape * torch.pi * progress))
 
         if self.adjust_temp is True:
-            # log_divergence = torch.log(1 + torch.tensor(loss_divergence))
             adaptive_scale = loss_divergence / (loss_divergence + 1)
 
             if adaptive_scale > 1:
@@ -278,7 +274,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
             self.max_temperature
         )
 
-        target_temperature = round(target_temperature.item(), 2)
+        # target_temperature = round(target_temperature.item(), 2)
 
         momentum = 0.9
         self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
@@ -467,7 +463,8 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
             distiller,
             train_loader,
             val_loader,
-            cfg
+            cfg,
+            curve_shape = 0.5
     ):
         super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
 
@@ -478,6 +475,7 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
         self.max_epochs = cfg.SOLVER.EPOCHS
         self.has_temp = True
         self.adjust_temp = cfg.SOLVER.ADJUST_TEMPERATURE
+        self.curve_shape = curve_shape
 
         try:
             self.distiller.module.temperature = cfg.SOLVER.INIT_TEMPERATURE
@@ -490,7 +488,7 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
 
     def update_temperature(self, current_epoch, loss_divergence):
         progress = torch.tensor(current_epoch / self.max_epochs)
-        cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
+        cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape*torch.pi * progress))
 
         if self.adjust_temp is True:
             # log_divergence = torch.log(1 + torch.tensor(loss_divergence))
