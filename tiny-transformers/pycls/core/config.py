@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+k#!/usr/bin/env python3
 
 # Copyright (c) Facebook, Inc. and its affiliates.
 #
@@ -39,6 +39,9 @@ _C.DISTILLATION.LOGIT_TEMP = 1.0
 _C.DISTILLATION.LOGIT_WEIGHT = 0.5
 _C.DISTILLATION.LOGIT_STANDARD = False
 _C.DISTILLATION.EXTRA_WEIGHT_IN = 9
+_C.TEMPERATURE.INIT = 4
+_C.TEMPERATURE.MAX = 8
+_C.TEMPERATURE.MIN = 1
 
 # Teacher model
 _C.DISTILLATION.TEACHER_MODEL = "ResNet"
