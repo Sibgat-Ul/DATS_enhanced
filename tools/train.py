@@ -132,13 +132,13 @@ def main(cfg, resume, opts):
                     )
                 )
 
-            trainer = trainer_dict["ls"](
-                experiment_name, distiller, train_loader, val_loader, cfg
-            )
+            # trainer = trainer_dict["ls"](
+            #     experiment_name, distiller, train_loader, val_loader, cfg
+            # )
+            #
+            # trainer.train(resume=resume)
 
-            trainer.train(resume=resume)
-
-            del distiller, trainer
+            # del distiller, trainer
             torch.cuda.empty_cache()
             gc.collect()
 
@@ -414,6 +414,10 @@ if __name__ == "__main__":
 
     cfg.LOG.WANDB = args.wandb
     cfg.REUSE = True if args.reuse else False
+    cfg.SOLVER.MIN_TEMPERATURE = args.min_temperature
+    cfg.SOLVER.MAX_TEMPERATURE = args.max_temperature
+    cfg.SOLVER.INIT_TEMPERATURE = args.init_temperature
+    cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
 
     if not cfg.REUSE:
         cfg.freeze()
