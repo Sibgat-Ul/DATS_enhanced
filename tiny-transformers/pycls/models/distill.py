@@ -70,9 +70,9 @@ class DistillationWrapper(nn.Module):
         self.temperature = cfg.DISTILLATION.LOGIT_TEMP
 
         self.min_temperature = self.temperature
-        self.max_temperature = self.min_temperature*2
-        self.initial_temperature = self.max_temperature
-        self.current_temperature = self.initial_temperature
+        self.max_temperature = cfg.TEMPERATURE.MAX
+        self.initial_temperature = cfg.TEMPERATURE.MIN
+        self.current_temperature = cfg.TEMPERATURE.INIT
 
         self.logit_standard = cfg.DISTILLATION.LOGIT_STANDARD
         self.extra_weight_in = cfg.DISTILLATION.EXTRA_WEIGHT_IN

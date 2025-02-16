@@ -147,7 +147,6 @@ def test_epoch(loader, model, meter, cur_epoch):
         meter.iter_tic()
     meter.log_epoch_stats(cur_epoch)
 
-
 def train_model():
     setup_env()
     model, ema = setup_model()

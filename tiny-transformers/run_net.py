@@ -29,6 +29,9 @@ def parse_args():
     help_s = "Config file location"
     parser.add_argument("--epochs", help=help_s, default=100, type=int)
     parser.add_argument("--use_scheduler", help=help_s, action="store_true")
+    parser.add_argument("--min_temp", type=float, help=help_s, default=2)
+    parser.add_argument("--max_temp", type=float, help=help_s, default=6)
+    parser.add_argument("--init_temp", type=float, help=help_s, default=6)
     parser.add_argument("--logit_stand", action="store_true")
     parser.add_argument("--cfg", help=help_s, required=True, type=str)
     help_s = "See pycls/core/config.py for all options"
@@ -47,6 +50,9 @@ def main():
     cfg.DISTILLATION.SCHEDULE = args.use_scheduler
     cfg.DISTILLATION.LOGIT_STANDARD = args.logit_stand
     cfg.OPTIM.MAX_EPOCH = args.epochs
+    cfg.TEMPERATURE.MIN = args.min_temp
+    cfg.TEMPERATURE.MAX = args.max_temp
+    cfg.TEMPERATURE.INIT = args.init_temp
     if cfg.OUT_DIR is None:
         out_dir = os.path.join('work_dirs', os.path.splitext(os.path.basename(args.cfg))[0])
         cfg.OUT_DIR = out_dir
