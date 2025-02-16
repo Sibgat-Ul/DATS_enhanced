@@ -132,11 +132,11 @@ def main(cfg, resume, opts):
                     )
                 )
 
-            # trainer = trainer_dict["ls"](
-            #     experiment_name, distiller, train_loader, val_loader, cfg
-            # )
-            #
-            # trainer.train(resume=resume)
+            trainer = trainer_dict["ls"](
+                experiment_name, distiller, train_loader, val_loader, cfg
+            )
+
+            trainer.train(resume=resume)
 
             # del distiller, trainer
             torch.cuda.empty_cache()
