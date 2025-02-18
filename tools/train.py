@@ -377,11 +377,6 @@ if __name__ == "__main__":
             cfg.SOLVER.MAX_TEMPERATURE = 3
             cfg.SOLVER.MIN_TEMPERATURE = 1
 
-    if args.distiller_type == "MLKD":
-        cfg.SOLVER.TRAINER = "ls"
-        if args.use_scheduler:
-            cfg.SOLVER.TRAINER = "ourls"
-
     cfg.EXPERIMENT.LOGIT_STAND = args.logit_stand
 
     if args.logit_stand and cfg.DISTILLER.TYPE in ['KD','DKD','MLKD']:
@@ -396,6 +391,8 @@ if __name__ == "__main__":
 
         elif cfg.DISTILLER.TYPE == 'MLKD':
             cfg.SOLVER.TRAINER = "ls"
+            if args.use_scheduler:
+                cfg.SOLVER.TRAINER = "ourls"
             cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
             cfg.KD.TEMPERATURE = args.base_temp
 
