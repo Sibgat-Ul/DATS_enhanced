@@ -391,10 +391,13 @@ if __name__ == "__main__":
 
         elif cfg.DISTILLER.TYPE == 'MLKD':
             cfg.SOLVER.TRAINER = "ls"
-            if args.use_scheduler:
-                cfg.SOLVER.TRAINER = "ourls"
             cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
             cfg.KD.TEMPERATURE = args.base_temp
+
+    if cfg.DISTILLER.TYPE == "MLKD":
+        cfg.SOLVER.TRAINER = "ls"
+        if args.use_scheduler:
+            cfg.SOLVER.TRAINER = "ourls"
 
     cfg.LOG.WANDB = args.wandb
     cfg.REUSE = True if args.reuse else False

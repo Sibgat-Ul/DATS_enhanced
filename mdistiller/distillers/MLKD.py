@@ -271,7 +271,7 @@ class MLKD(Distiller):
             "loss_bc": loss_bc_weak
         }
 
-        if self.cfg.SOLVER.TRAINER == "scheduler":
+        if self.cfg.SOLVER.TRAINER == "scheduler" or self.cfg.SOLVER.TRAINER == "ourls":
             teacher_loss = F.cross_entropy(logits_teacher_weak, target) + F.cross_entropy(logits_teacher_strong, target)
             with torch.no_grad():
                 loss_divergence = teacher_loss.item() - student_loss.item()
