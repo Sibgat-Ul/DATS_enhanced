@@ -230,7 +230,6 @@ class DynamicTemperatureScheduler(BaseTrainer):
         train_loader,
         val_loader,
         cfg,
-        curve_shape=1,
     ):
         super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
 
@@ -241,7 +240,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
         self.max_epochs = cfg.SOLVER.EPOCHS
         self.has_temp = True
         self.adjust_temp = cfg.SOLVER.ADJUST_TEMPERATURE
-        self.curve_shape = curve_shape
+        self.curve_shape = cfg.SOLVER.CURVE_SHAPE
 
         try:
             self.distiller.module.temperature = cfg.SOLVER.INIT_TEMPERATURE
@@ -464,7 +463,6 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
             train_loader,
             val_loader,
             cfg,
-            curve_shape = 0.5
     ):
         super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
 
@@ -475,7 +473,7 @@ class DynamicAugTrainer(DynamicTemperatureScheduler):
         self.max_epochs = cfg.SOLVER.EPOCHS
         self.has_temp = True
         self.adjust_temp = cfg.SOLVER.ADJUST_TEMPERATURE
-        self.curve_shape = curve_shape
+        self.curve_shape = cfg.SOLVER.CURVE_SHAPE
 
         try:
             self.distiller.module.temperature = cfg.SOLVER.INIT_TEMPERATURE

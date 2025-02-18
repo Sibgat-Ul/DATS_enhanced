@@ -224,7 +224,6 @@ def main(cfg, resume, opts):
                 cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
                 cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
 
-            cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"
             cfg.DISTILLER.TYPE = "kd"
 
@@ -417,6 +416,7 @@ if __name__ == "__main__":
     cfg.SOLVER.MAX_TEMPERATURE = args.max_temperature
     cfg.SOLVER.INIT_TEMPERATURE = args.init_temperature
     cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
+    cfg.SOLVER.CURVE_SHAPE = args.curve_shape
 
     if not cfg.REUSE:
         cfg.freeze()
