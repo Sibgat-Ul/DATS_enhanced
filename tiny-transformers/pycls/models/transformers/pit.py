@@ -139,6 +139,8 @@ class PiT(BaseTransformerModel):
         trunc_normal_(self.cls_token, std=.02)
         self.apply(self._init_weights)
 
+        self.distill_logits = None
+
     def _feature_hook(self, module, inputs, outputs):
         token_length, h, w = module.shape_info
         x = outputs[:, token_length:]
@@ -169,4 +171,5 @@ class PiT(BaseTransformerModel):
     def forward(self, x):
         cls_token = self.forward_features(x)
         cls_token = self.head(cls_token[:, 0])
+        self.distill_logits = cls_token
         return cls_token

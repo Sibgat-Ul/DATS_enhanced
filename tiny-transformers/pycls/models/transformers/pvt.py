@@ -169,6 +169,7 @@ class PVT(BaseTransformerModel):
 
         # classification head
         self.head = nn.Linear(self.hidden_dim[3], self.num_classes)
+        self.distill_logits = None
 
         # init weights
         for i in range(self.num_stages):
@@ -234,4 +235,5 @@ class PVT(BaseTransformerModel):
     def forward(self, x):
         x = self.forward_features(x)
         x = self.head(x)
+        self.distill_logits = x
         return x

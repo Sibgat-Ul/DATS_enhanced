@@ -137,8 +137,7 @@ def main(cfg, resume, opts):
             )
 
             trainer.train(resume=resume)
-
-            # del distiller, trainer
+            del distiller, trainer
             torch.cuda.empty_cache()
             gc.collect()
 
@@ -146,21 +145,9 @@ def main(cfg, resume, opts):
 
             distiller = torch.nn.DataParallel(distiller2.cuda())
 
-            if (
-                    cfg.DISTILLER.STUDENT == "resnet8x4" or
-                    cfg.DISTILLER.STUDENT == "wrn_16_2" or
-                    (cfg.DISTILLER.TEACHER == "resnet110" and cfg.DISTILLER.STUDENT == "resnet20") or
-                    (cfg.DISTILLER.TEACHER == "resnet110" and cfg.DISTILLER.STUDENT == "resnet32") or
-                    cfg.DISTILLER.STUDENT == "MobileNetV2" or cfg.DISTILLER.STUDENT == "ShuffleV2" or
-                    cfg.DISTILLER.STUDENT == "ShuffleV1"
-            ):
-                cfg.SOLVER.INIT_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.MAX_TEMPERATURE
-                cfg.SOLVER.MIN_TEMPERATURE = cfg.SOLVER.MIN_TEMPERATURE
-            else:
-                cfg.SOLVER.INIT_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.MAX_TEMPERATURE
-                cfg.SOLVER.MIN_TEMPERATURE = cfg.SOLVER.MIN_TEMPERATURE
+            cfg.SOLVER.INIT_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
+            cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.MAX_TEMPERATURE
+            cfg.SOLVER.MIN_TEMPERATURE = cfg.SOLVER.MIN_TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"
