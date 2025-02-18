@@ -379,6 +379,8 @@ if __name__ == "__main__":
 
     if args.distiller_type == "MLKD":
         cfg.SOLVER.TRAINER = "ls"
+        if args.use_scheduler:
+            cfg.SOLVER.TRAINER = "ourls"
 
     cfg.EXPERIMENT.LOGIT_STAND = args.logit_stand
 
