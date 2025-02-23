@@ -168,10 +168,12 @@ class DistillationWrapper(nn.Module):
                 loss_inter = loss_inter + inter_distill_loss(feat_t, feat_s, self.inter_transform_type)
 
         loss_logit = logit_distill_loss(
-            logits_t, logits_s, self.logit_loss_type,
+            logits_t,
+            logits_s,
+            self.logit_loss_type,
             self.current_temperature if self.scheduler else self.temperature,
             self.logit_standard,
-            extra_weight_in=self.extra_weight_in) if self.enable_logit else x.new_tensor(
+            extra_weight_in=self.extra_weight_in) if self.logit_standard or self.scheduler else x.new_tensor(
             0.0)
 
         if self.scheduler:
