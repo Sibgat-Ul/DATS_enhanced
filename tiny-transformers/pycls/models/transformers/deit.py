@@ -80,11 +80,9 @@ class DeiT(BaseTransformerModel):
 
         if self.num_tokens == 1:
             x = torch.cat([self.cls_token.repeat(x.size(0), 1, 1), x], dim=1)
-            print(x.shape)
         else:
             x = torch.cat([self.cls_token.repeat(x.size(0), 1, 1), self.distill_token.repeat(x.size(0), 1, 1), x], dim=1)
         x = self.pe_dropout(x + self.pos_embed)
-        print(x.shape)
         for layer in self.layers:
             x = layer(x)
 

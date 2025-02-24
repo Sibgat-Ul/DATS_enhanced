@@ -69,9 +69,9 @@ class DistillationWrapper(nn.Module):
         self.scheduler = cfg.DISTILLATION.SCHEDULE
         self.temperature = cfg.DISTILLATION.LOGIT_TEMP
 
-        self.min_temperature = self.temperature
+        self.min_temperature = cfg.TEMPERATURE.MIN
         self.max_temperature = cfg.TEMPERATURE.MAX
-        self.initial_temperature = cfg.TEMPERATURE.MIN
+        self.initial_temperature = cfg.TEMPERATURE.INIT
         self.current_temperature = cfg.TEMPERATURE.INIT
 
         self.logit_standard = cfg.DISTILLATION.LOGIT_STANDARD
@@ -99,21 +99,23 @@ class DistillationWrapper(nn.Module):
 
     def update_temperature(self, current_epoch, loss_divergence):
         progress = torch.tensor(current_epoch / self.max_epoch)
-        cosine_factor = 0.5 * (1 + torch.cos(0.5*torch.pi * progress))
+        cosine_factor = 0.5 * (1 + torch.cos(0.5 * torch.pi * progress))
         # log_loss = torch.log(torch.tensor(loss_divergence))
         adaptive_scale = loss_divergence / (loss_divergence + 1)
-
+        print(current_epoch, loss_divergence, adaptive_scale, self.max_epoch, progress, cosine_factor)
         if adaptive_scale > 1:
+            if adaptive_scale > 2:
+                adaptive_scale = 1.4
             target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
         else:
             target_temperature = self.initial_temperature * cosine_factor
-        target_temperature = self.initial_temperature * cosine_factor
 
         target_temperature = torch.clamp(
             target_temperature,
             self.min_temperature,
             self.max_temperature
         )
+        print(self.current_temperature, self.initial_temperature, target_temperature)
 
         momentum = 0.9
 
@@ -171,15 +173,15 @@ class DistillationWrapper(nn.Module):
             logits_t,
             logits_s,
             self.logit_loss_type,
-            self.current_temperature if self.scheduler else self.temperature,
-            self.logit_standard,
+            temperature=self.current_temperature if self.scheduler else self.temperature,
+            logit_standard=self.logit_standard,
             extra_weight_in=self.extra_weight_in) if self.logit_standard or self.scheduler else x.new_tensor(
             0.0)
 
         if self.scheduler:
             t_loss = F.cross_entropy(logits_t, target)
             s_loss = F.cross_entropy(logits_s, target)
-            loss_divergence = t_loss.item() + s_loss.item()
+            loss_divergence = t_loss.item() - s_loss.item()
             self.update_temperature(epoch, loss_divergence)
 
         return loss_inter, loss_logit
