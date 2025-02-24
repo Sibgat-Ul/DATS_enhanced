@@ -33,6 +33,7 @@ def parse_args():
     parser.add_argument("--max_temp", type=float, help=help_s, default=6)
     parser.add_argument("--init_temp", type=float, help=help_s, default=6)
     parser.add_argument("--logit_stand", action="store_true")
+    parser.add_argument("--curve_shape", type=float, default=1.0)
     parser.add_argument("--cfg", help=help_s, required=True, type=str)
     help_s = "See pycls/core/config.py for all options"
     parser.add_argument("opts", help=help_s, default=None, nargs=argparse.REMAINDER)
@@ -53,6 +54,7 @@ def main():
     cfg.TEMPERATURE.MIN = args.min_temp
     cfg.TEMPERATURE.MAX = args.max_temp
     cfg.TEMPERATURE.INIT = args.init_temp
+    cfg.DISTILLATION.CURVE_SHAPE = args.curve_shape
     if cfg.OUT_DIR is None:
         out_dir = os.path.join('work_dirs', os.path.splitext(os.path.basename(args.cfg))[0])
         cfg.OUT_DIR = out_dir
