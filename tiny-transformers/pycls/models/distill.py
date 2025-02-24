@@ -114,7 +114,6 @@ class DistillationWrapper(nn.Module):
             self.min_temperature,
             self.max_temperature
         )
-        print(self.current_temperature, self.initial_temperature, target_temperature)
 
         momentum = 0.9
 
