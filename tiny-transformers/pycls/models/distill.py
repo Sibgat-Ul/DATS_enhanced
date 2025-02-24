@@ -167,6 +167,12 @@ class DistillationWrapper(nn.Module):
                 feat_s = F.interpolate(feat_s, dsize, mode='bilinear', align_corners=False)
                 loss_inter = loss_inter + inter_distill_loss(feat_t, feat_s, self.inter_transform_type)
 
+        if self.scheduler:
+            t_loss = F.cross_entropy(logits_t, target)
+            s_loss = F.cross_entropy(logits_s, target)
+            loss_divergence = t_loss.item() - s_loss.item()
+            self.update_temperature(epoch, loss_divergence)
+
         loss_logit = logit_distill_loss(
             logits_t,
             logits_s,
@@ -175,11 +181,5 @@ class DistillationWrapper(nn.Module):
             logit_standard=self.logit_standard,
             extra_weight_in=self.extra_weight_in) if self.logit_standard or self.scheduler else x.new_tensor(
             0.0)
-
-        if self.scheduler:
-            t_loss = F.cross_entropy(logits_t, target)
-            s_loss = F.cross_entropy(logits_s, target)
-            loss_divergence = t_loss.item() - s_loss.item()
-            self.update_temperature(epoch, loss_divergence)
 
         return loss_inter, loss_logit
