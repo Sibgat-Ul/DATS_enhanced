@@ -87,7 +87,7 @@ def main(cfg, resume, opts):
 
             model_teacher = tiny_imagenet_collection[cfg.DISTILLER.TEACHER]
             model_teacher.fc = torch.nn.Linear(model_teacher.fc.in_features, 200)
-            model_teacher.load_state_dict(torch.load(f"../download_ckpts/${cfg.DISTILLER.TEACHER}_weights.pth", weights_only=True))
+            model_teacher.load_state_dict(torch.load(f"../download_ckpts/{cfg.DISTILLER.TEACHER}_weights.pth", weights_only=True))
 
             model_student = tiny_imagenet_collection[cfg.DISTILLER.STUDENT]
             model_student.fc = torch.nn.Linear(model_student.fc.in_features, 200)
