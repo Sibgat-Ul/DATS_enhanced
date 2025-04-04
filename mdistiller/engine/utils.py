@@ -40,6 +40,7 @@ def validate(val_loader, distiller):
             target = target.cuda(non_blocking=True)
             output = distiller(image=image)
             loss = criterion(output, target)
+
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
             batch_size = image.size(0)
             losses.update(loss.cpu().detach().numpy().mean(), batch_size)

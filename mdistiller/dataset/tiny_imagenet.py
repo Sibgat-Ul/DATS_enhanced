@@ -40,9 +40,12 @@ class ImageNet(Dataset):
             label = self.labels[index]
             y = self.encoder.transform([label])[0]
             return x, y, index
+
         elif self.mode == 'val':
-            y = self.encoder.transform([self.labels[index]])[0]
+            label = self.labels[index]
+            y = self.encoder.transform([label])[0]
             return x, y
+
         elif self.mode == 'test':
             return x, self.files[index]
 
