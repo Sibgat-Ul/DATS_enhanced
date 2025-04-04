@@ -131,7 +131,7 @@ def get_tiny_imagenet_dataloaders(
 
     num_data = 200
 
-    train_loader = DataLoader(train_set, batch_size=64,
+    train_loader = DataLoader(train_set, batch_size=batch_size,
         shuffle=True, num_workers=num_workers, pin_memory=True)
 
     test_set = ImageNet(files=files_val,
@@ -140,6 +140,6 @@ def get_tiny_imagenet_dataloaders(
                             transforms=test_transform,
                             mode='val')
 
-    test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=num_workers, pin_memory=True)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
     return train_loader, test_loader, num_data
