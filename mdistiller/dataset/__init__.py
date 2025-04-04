@@ -1,5 +1,6 @@
 from .cifar100 import get_cifar100_dataloaders, get_cifar100_dataloaders_sample, get_cifar100_dataloaders_trainval, get_cifar100_dataloaders_val_only, get_cifar100_dataloaders_train_only, get_cifar100_dataloaders_strong
 from .imagenet import get_imagenet_dataloaders, get_imagenet_dataloaders_sample, get_imagenet_dataloaders_strong
+from .tiny_imagenet import get_tiny_imagenet_dataloaders
 
 
 def get_dataset(cfg):
@@ -34,6 +35,13 @@ def get_dataset(cfg):
                 num_workers=cfg.DATASET.NUM_WORKERS,
             )
         num_classes = 1000
+    elif cfg.DATASET.TYPE == "tiny_imagenet":
+        train_loader, val_loader, num_data = get_tiny_imagenet_dataloaders(
+            batch_size=cfg.SOLVER.BATCH_SIZE,
+            val_batch_size=cfg.DATASET.TEST.BATCH_SIZE,
+            num_workers=cfg.DATASET.NUM_WORKERS,
+        )
+        num_classes = 200
     else:
         raise NotImplementedError(cfg.DATASET.TYPE)
 

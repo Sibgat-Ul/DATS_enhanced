@@ -84,6 +84,149 @@ BEST_ACCURACY = -1
 # In Phase 1, MSE loss is used between student and Annealed teacher output
 # In Phase 2, Cross-entropy loss is used between student and true labels
 
+class DynamicTemperatureScheduler(nn.Module):
+    def __init__(
+            self,
+            initial_temperature=8.0,
+            min_temperature=4.0,
+            max_temperature=8,
+            max_epoch=50,
+            curve_len=0.5,
+            warmup=20,
+            emb_loss=False
+    ):
+        super(DynamicTemperatureScheduler, self).__init__()
+
+        self.current_temperature = initial_temperature
+        self.initial_temperature = initial_temperature
+
+        self.min_temperature = min_temperature
+        self.max_temperature = max_temperature
+
+        self.max_epoch = max_epoch
+        self.warmup = warmup
+        self.logit_stand = False
+        self.loss_type = "kd"
+        self.curve_len = curve_len
+        self.emb_loss = emb_loss
+
+        # Constants for importance
+        self.loss_manager = LossManager(
+            initial_temperature,
+            min_temperature
+        )
+
+    def update_temperature(self, current_epoch, loss_divergence):
+        progress = torch.tensor(current_epoch / self.max_epoch)
+        cosine_factor = 0.5 * (1 + torch.cos(0.5 * torch.pi * progress))
+
+        target_temperature = self.initial_temperature * cosine_factor
+
+        target_temperature = torch.clamp(
+            target_temperature,
+            self.min_temperature,
+            self.max_temperature
+        )
+
+        momentum = 0.9
+        self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
+        self.loss_manager.current_temperature = self.current_temperature
+
+    def get_temperature(self):
+        """
+        Retrieve current temperature value.
+
+        Returns:
+            float: Current dynamic temperature.
+        """
+
+        return self.current_temperature
+
+    def forward(self, epoch, student_logits, teacher_logits, outputs, loss_type="emb"):
+        """
+        Forward pass to compute the loss based on the specified loss type.
+
+        Args:
+            student_logits (torch.Tensor): Logits from student model.
+            teacher_logits (torch.Tensor): Logits from teacher model.
+            outputs (torch.Tensor): True labels.
+
+        Returns:
+            torch.Tensor: Computed loss.
+        """
+
+        if loss_type == "emb":
+            loss = F.mse_loss(student_logits/self.current_temperature, teacher_logits/self.current_temperature)
+
+            with torch.no_grad():
+                self.update_temperature(epoch, None)
+
+            self.loss_manager.current_temperature = self.current_temperature
+            return loss
+
+        elif loss_type == "kd":
+            logits_student = student_logits
+            logits_teacher = teacher_logits
+            target = outputs
+
+            softmax = nn.Softmax(dim=-1)
+            teacher_loss = F.cross_entropy(softmax(logits_teacher), target)
+            student_loss = F.cross_entropy(softmax(logits_student), target)
+
+            with torch.no_grad():
+                loss_divergence = teacher_loss.item() - student_loss.item()
+
+            loss_ce = 0.1 * student_loss
+
+            loss_kd = 0.9 * self.loss_manager.kd_loss(
+                logits_student, logits_teacher, self.logit_stand
+            )
+
+            losses_dict = {
+                "loss_ce": loss_ce,
+                "loss_kd": loss_kd,
+            }
+
+            with torch.no_grad():
+                self.update_temperature(epoch, loss_divergence)
+
+            self.loss_manager.current_temperature = self.current_temperature
+            return sum([l.mean() for l in losses_dict.values()])
+
+        else:
+            logits_student = student_logits
+            logits_teacher = teacher_logits
+            target = outputs
+
+            student_loss = F.cross_entropy(logits_student, target)
+            teacher_loss = F.cross_entropy(logits_teacher, target)
+
+            with torch.no_grad():
+                loss_divergence = teacher_loss.item() - student_loss.item()
+
+            # losses
+            loss_ce = 1.0 * student_loss
+
+            loss_dkd = min(epoch / self.warmup, 1.0) * dkd_loss(
+                logits_student,
+                logits_teacher,
+                target,
+                9.0 if self.logit_stand else 1.0,
+                18.0 if self.logit_stand else 8.0,
+                self.current_temperature,
+                self.logit_stand,
+            )
+
+            losses_dict = {
+                "loss_ce": loss_ce,
+                "loss_kd": loss_dkd,
+            }
+
+            with torch.no_grad():
+                self.update_temperature(epoch, loss_divergence)
+
+            return sum([l.mean() for l in losses_dict.values()])
+
 def train(args, train_dataset, model_student, model_teacher, tokenizer, phase):
     """ Train the model """
     model_student.train()
@@ -239,6 +382,7 @@ def train(args, train_dataset, model_student, model_teacher, tokenizer, phase):
             # In Phase 1, use MSE loss between student and Annealed teacher output
             # In Phase 2, use Cross-entropy loss between student and true labels
             if phase == 1:
+                loss = F.mse_loss(S, T * (temp / args.max_temperature))
                 loss = F.mse_loss(S, T * (temp / args.max_temperature))
             else:
                 # STS-B is a regression task, so MSE loss but other tasks are classfication

@@ -142,7 +142,7 @@ _C.OPTIM.OPTIMIZER = "sgd"
 
 # Learning rate of body ranges from BASE_LR to MIN_LR according to the LR_POLICY
 _C.OPTIM.BASE_LR = 0.1
-_C.OPTIM.MIN_LR = 0.0
+_C.OPTIM.MIN_LR = 0.00001
 
 # Base learning of head is TRANSFER_LR_RATIO * BASE_LR
 _C.OPTIM.HEAD_LR_RATIO = 1.0

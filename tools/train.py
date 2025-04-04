@@ -57,9 +57,8 @@ def main(cfg, resume, opts):
 
     # vanilla
     if cfg.DISTILLER.TYPE == "NONE":
-        if cfg.DATASET.TYPE == "imagenet":
+        if cfg.DATASET.TYPE == "imagenet" or cfg.DATASET.TYPE == "tiny_imagenet":
             model_student = imagenet_model_dict[cfg.DISTILLER.STUDENT](pretrained=False)
-
         else:
             model_student = cifar_model_dict[cfg.DISTILLER.STUDENT][0](
                 num_classes=num_classes
