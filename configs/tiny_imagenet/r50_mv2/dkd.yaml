@@ -1,9 +1,9 @@
 EXPERIMENT:
   NAME: ""
   TAG: "dkd,res50,mobilenetv2"
-  PROJECT: "imagenet_baselines"
+  PROJECT: "tiny_imagenet_baselines"
 DATASET:
-  TYPE: "imagenet"
+  TYPE: "tiny_imagenet"
   NUM_WORKERS: 32
   TEST:
     BATCH_SIZE: 128

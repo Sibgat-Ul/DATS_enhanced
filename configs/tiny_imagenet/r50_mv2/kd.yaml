@@ -1,14 +1,14 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "dkd,res50,mobilenetv2"
-  PROJECT: "imagenet_baselines"
+  TAG: "kd,res50,mobilenetv2"
+  PROJECT: "tiny_imagenet_baselines"
 DATASET:
-  TYPE: "imagenet"
+  TYPE: "tiny_imagenet"
   NUM_WORKERS: 32
   TEST:
     BATCH_SIZE: 128
 DISTILLER:
-  TYPE: "DKD"
+  TYPE: "KD"
   TEACHER: "ResNet50"
   STUDENT: "MobileNetV2"
 SOLVER:
@@ -20,11 +20,11 @@ SOLVER:
   WEIGHT_DECAY: 0.0001
   MOMENTUM: 0.9
   TYPE: "SGD"
+KD:
+  TEMPERATURE: 1
+  LOSS:
+    CE_WEIGHT: 0.5
+    KD_WEIGHT: 0.5
 LOG:
   TENSORBOARD_FREQ: 50
   SAVE_CHECKPOINT_FREQ: 10
-DKD:
-  CE_WEIGHT: 1.0
-  BETA: 2.0
-  T: 1.0
-  WARMUP: 1

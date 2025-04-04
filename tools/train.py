@@ -376,9 +376,10 @@ if __name__ == "__main__":
     cfg.merge_from_file(args.cfg)
     cfg.merge_from_list(args.opts)
 
+    cfg.SOLVER.EPOCHS = args.epochs
+    cfg.SOLVER.BATCH_SIZE = args.batch_size
+
     if args.dataset == "cifar100":
-        cfg.SOLVER.EPOCHS = args.epochs
-        cfg.SOLVER.BATCH_SIZE = args.batch_size
         cfg.SOLVER.LR_DECAY_STAGES = [int(args.epochs*0.625), int(args.epochs*0.75), int(args.epochs*0.875)]
 
     if args.use_scheduler:
