@@ -51,6 +51,18 @@ class ImageNet(Dataset):
 #         img, target = super().__getitem__(index)
 #         return img, target, index
 
+def get_imagenet_train_transform(mean, std):
+    normalize = transforms.Normalize(mean=mean, std=std)
+    train_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize([0.4802, 0.4481, 0.3975], [0.2302, 0.2265, 0.2262]),
+        transforms.RandomErasing(p=0.5, scale=(0.06, 0.08), ratio=(1, 3), value=0, inplace=True)
+    ])
+
+    return train_transform
+
 
 def get_imagenet_test_transform(mean, std):
     test_transform = transforms.Compose([
@@ -125,6 +137,6 @@ def get_tiny_imagenet_dataloaders(
                             transforms=test_transform,
                             mode='val')
 
-    test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=16, pin_memory=True)
+    test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=num_workers, pin_memory=True)
 
     return train_loader, test_loader, num_data
