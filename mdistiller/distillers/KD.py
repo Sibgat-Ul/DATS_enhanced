@@ -39,7 +39,6 @@ class KD(Distiller):
         else:
             logits_student = self.student(image)
             logits_teacher = self.teacher(image)
-            print(target)
         # losses
         student_loss = F.cross_entropy(logits_student, target)
         teacher_loss = F.cross_entropy(logits_teacher, target)
