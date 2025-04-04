@@ -31,11 +31,14 @@ class KD(Distiller):
         self.cfg = cfg
 
     def forward_train(self, image, target, **kwargs):
-        logits_student, _ = self.student(image)
+        if self.cfg.DATASET.TYPE != "tiny_imagenet":
+            logits_student, _ = self.student(image)
 
-        with torch.no_grad():
-            logits_teacher, _ = self.teacher(image)
-
+            with torch.no_grad():
+                logits_teacher, _ = self.teacher(image)
+        else:
+            logits_student = self.student(image)
+            logits_teacher = self.teacher(image)
         # losses
         student_loss = F.cross_entropy(logits_student, target)
         teacher_loss = F.cross_entropy(logits_teacher, target)
