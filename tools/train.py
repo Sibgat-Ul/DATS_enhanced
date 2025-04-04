@@ -1,5 +1,6 @@
 import os
 import torch
+import torchvision
 import wandb
 import gc
 
@@ -74,6 +75,22 @@ def main(cfg, resume, opts):
             model_teacher = imagenet_model_dict[cfg.DISTILLER.TEACHER](pretrained=True)
             model_student = imagenet_model_dict[cfg.DISTILLER.STUDENT](pretrained=False)
 
+        elif cfg.DATASET.TYPE == "tiny_imagenet":
+            tiny_imagenet_collection = {
+                # teachers:
+                "ResNet34": torchvision.models.resnet34(pretrained=True),
+                "ResNet50": torchvision.models.resnet50(pretrained=True),
+                # students:
+                "ResNet18": torchvision.models.resnet18(pretrained=False),
+                "MobileNetV2": torchvision.models.mobilenet_v2(pretrained=False),
+            }
+
+            model_teacher = tiny_imagenet_collection[cfg.DISTILLER.TEACHER]
+            model_teacher.fc = torch.nn.Linear(model_teacher.fc.in_features, 200)
+            model_teacher.load_state_dict(torch.load(f"../download_ckpts/${cfg.DISTILLER.TEACHER}_weights.pth", weights_only=True))
+
+            model_student = tiny_imagenet_collection[cfg.DISTILLER.STUDENT]
+            model_student.fc = torch.nn.Linear(model_student.fc.in_features, 200)
         else:
             net, pretrain_model_path = cifar_model_dict[cfg.DISTILLER.TEACHER]
 

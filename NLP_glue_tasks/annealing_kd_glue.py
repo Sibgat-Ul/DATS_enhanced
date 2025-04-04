@@ -75,52 +75,40 @@ def set_seed(args):
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-
-# Create global variable to store current best result, to be used for saving best model based on dev set
-BEST_ACCURACY = -1
-
-
-# Train function. Training for Annealing KD is split into 2 phases
-# In Phase 1, MSE loss is used between student and Annealed teacher output
-# In Phase 2, Cross-entropy loss is used between student and true labels
-
-class DynamicTemperatureScheduler(nn.Module):
+class DynamicTemperatureScheduler():
     def __init__(
-            self,
-            initial_temperature=8.0,
-            min_temperature=4.0,
-            max_temperature=8,
-            max_epoch=50,
-            curve_len=0.5,
-            warmup=20,
-            emb_loss=False
+        self,
+        experiment_name,
+        distiller,
+        train_loader,
+        val_loader,
+        cfg,
     ):
-        super(DynamicTemperatureScheduler, self).__init__()
+        super(DynamicTemperatureScheduler, self).__init__(experiment_name, distiller, train_loader, val_loader, cfg)
 
-        self.current_temperature = initial_temperature
-        self.initial_temperature = initial_temperature
-
-        self.min_temperature = min_temperature
-        self.max_temperature = max_temperature
-
-        self.max_epoch = max_epoch
-        self.warmup = warmup
-        self.logit_stand = False
-        self.loss_type = "kd"
-        self.curve_len = curve_len
-        self.emb_loss = emb_loss
-
-        # Constants for importance
-        self.loss_manager = LossManager(
-            initial_temperature,
-            min_temperature
-        )
+        self.current_temperature = cfg.INIT_TEMPERATURE
+        self.initial_temperature = cfg.INIT_TEMPERATURE
+        self.min_temperature = cfg.MIN_TEMPERATURE
+        self.max_temperature = cfg.MAX_TEMPERATURE
+        self.max_epochs = cfg.EPOCHS
+        self.adjust_temp = True
+        self.curve_shape = 0.5
 
     def update_temperature(self, current_epoch, loss_divergence):
-        progress = torch.tensor(current_epoch / self.max_epoch)
-        cosine_factor = 0.5 * (1 + torch.cos(0.5 * torch.pi * progress))
+        progress = torch.tensor(current_epoch / self.max_epochs)
+        cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape * torch.pi * progress))
 
-        target_temperature = self.initial_temperature * cosine_factor
+        if self.adjust_temp is True:
+            adaptive_scale = loss_divergence / (loss_divergence + 1)
+
+            if adaptive_scale > 1:
+                if adaptive_scale > 2:
+                    adaptive_scale = 1.35
+                target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
+            else:
+                target_temperature = self.initial_temperature * cosine_factor
+        else:
+            target_temperature = self.initial_temperature * cosine_factor
 
         target_temperature = torch.clamp(
             target_temperature,
@@ -128,9 +116,10 @@ class DynamicTemperatureScheduler(nn.Module):
             self.max_temperature
         )
 
+        # target_temperature = round(target_temperature.item(), 2)
+
         momentum = 0.9
         self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
-        self.loss_manager.current_temperature = self.current_temperature
 
     def get_temperature(self):
         """
@@ -141,91 +130,8 @@ class DynamicTemperatureScheduler(nn.Module):
         """
 
         return self.current_temperature
-
-    def forward(self, epoch, student_logits, teacher_logits, outputs, loss_type="emb"):
-        """
-        Forward pass to compute the loss based on the specified loss type.
-
-        Args:
-            student_logits (torch.Tensor): Logits from student model.
-            teacher_logits (torch.Tensor): Logits from teacher model.
-            outputs (torch.Tensor): True labels.
-
-        Returns:
-            torch.Tensor: Computed loss.
-        """
-
-        if loss_type == "emb":
-            loss = F.mse_loss(student_logits/self.current_temperature, teacher_logits/self.current_temperature)
-
-            with torch.no_grad():
-                self.update_temperature(epoch, None)
-
-            self.loss_manager.current_temperature = self.current_temperature
-            return loss
-
-        elif loss_type == "kd":
-            logits_student = student_logits
-            logits_teacher = teacher_logits
-            target = outputs
-
-            softmax = nn.Softmax(dim=-1)
-            teacher_loss = F.cross_entropy(softmax(logits_teacher), target)
-            student_loss = F.cross_entropy(softmax(logits_student), target)
-
-            with torch.no_grad():
-                loss_divergence = teacher_loss.item() - student_loss.item()
-
-            loss_ce = 0.1 * student_loss
-
-            loss_kd = 0.9 * self.loss_manager.kd_loss(
-                logits_student, logits_teacher, self.logit_stand
-            )
-
-            losses_dict = {
-                "loss_ce": loss_ce,
-                "loss_kd": loss_kd,
-            }
-
-            with torch.no_grad():
-                self.update_temperature(epoch, loss_divergence)
-
-            self.loss_manager.current_temperature = self.current_temperature
-            return sum([l.mean() for l in losses_dict.values()])
-
-        else:
-            logits_student = student_logits
-            logits_teacher = teacher_logits
-            target = outputs
-
-            student_loss = F.cross_entropy(logits_student, target)
-            teacher_loss = F.cross_entropy(logits_teacher, target)
-
-            with torch.no_grad():
-                loss_divergence = teacher_loss.item() - student_loss.item()
-
-            # losses
-            loss_ce = 1.0 * student_loss
-
-            loss_dkd = min(epoch / self.warmup, 1.0) * dkd_loss(
-                logits_student,
-                logits_teacher,
-                target,
-                9.0 if self.logit_stand else 1.0,
-                18.0 if self.logit_stand else 8.0,
-                self.current_temperature,
-                self.logit_stand,
-            )
-
-            losses_dict = {
-                "loss_ce": loss_ce,
-                "loss_kd": loss_dkd,
-            }
-
-            with torch.no_grad():
-                self.update_temperature(epoch, loss_divergence)
-
-            return sum([l.mean() for l in losses_dict.values()])
+# Create global variable to store current best result, to be used for saving best model based on dev set
+BEST_ACCURACY = -1
 
 def train(args, train_dataset, model_student, model_teacher, tokenizer, phase):
     """ Train the model """
@@ -468,6 +374,249 @@ def train(args, train_dataset, model_student, model_teacher, tokenizer, phase):
 
     return global_step, tr_loss / global_step
 
+def train_with_scheduler(args, train_dataset, model_student, model_teacher, tokenizer, phase):
+    """ Train the model """
+    model_student.train()
+    model_teacher.eval()
+    DTS = DynamicTemperatureScheduler()
+
+
+    if args.local_rank in [-1, 0]:
+        tb_writer = SummaryWriter()
+
+    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
+    train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
+    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
+
+    if args.max_steps > 0:
+        t_total = args.max_steps
+        epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
+    else:
+        if phase == 1:
+            t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs_phase_1
+        else:
+            t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs_phase_2
+
+    # Prepare optimizer and schedule (linear warmup and decay)
+    no_decay = ["bias", "LayerNorm.weight"]
+    optimizer_grouped_parameters = [
+        {
+            "params": [p for n, p in model_student.named_parameters() if not any(nd in n for nd in no_decay)],
+            "weight_decay": args.weight_decay,
+        },
+        {"params": [p for n, p in model_student.named_parameters() if any(nd in n for nd in no_decay)],
+         "weight_decay": 0.0},
+    ]
+
+    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+    )
+
+    # Check if saved optimizer or scheduler states exist
+    if os.path.isfile(os.path.join(args.student_model_name_or_path, "optimizer.pt")) and os.path.isfile(
+            os.path.join(args.student_model_name_or_path, "scheduler.pt")
+    ):
+        # Load in optimizer and scheduler states
+        optimizer.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "optimizer.pt")))
+        scheduler.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "scheduler.pt")))
+
+    if args.fp16:
+        try:
+            from apex import amp
+        except ImportError:
+            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+        model_student, optimizer = amp.initialize(model_student, optimizer, opt_level=args.fp16_opt_level)
+
+    # multi-gpu training (should be after apex fp16 initialization)
+    if args.n_gpu > 1 and not isinstance(model_student, torch.nn.DataParallel):
+        model_student = torch.nn.DataParallel(model_student)
+
+    # Distributed training (should be after apex fp16 initialization)
+    if args.local_rank != -1:
+        model_student = torch.nn.parallel.DistributedDataParallel(
+            model_student, device_ids=[args.local_rank], output_device=args.local_rank, find_unused_parameters=True,
+        )
+
+    # Start the training process
+    logger.info("***** Running training *****")
+    logger.info("  Num examples = %d", len(train_dataset))
+
+    if phase == 1:
+        logger.info("  Num Epochs = %d", args.num_train_epochs_phase_1)
+    else:
+        logger.info("  Num Epochs = %d", args.num_train_epochs_phase_2
+                    )
+    logger.info("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
+    logger.info(
+        "  Total train batch size (w. parallel, distributed & accumulation) = %d",
+        args.train_batch_size
+        * args.gradient_accumulation_steps
+        * (torch.distributed.get_world_size() if args.local_rank != -1 else 1),
+    )
+    logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
+    logger.info("  Total optimization steps = %d", t_total)
+
+    global_step = 0
+    epochs_trained = 0
+    steps_trained_in_current_epoch = 0
+    # Check if continuing training from a checkpoint
+    if os.path.exists(args.student_model_name_or_path):
+        # set global_step to global_step of last saved checkpoint from model path
+        try:
+            global_step = int(args.student_model_name_or_path.split("-")[-1].split("/")[0])
+        except ValueError:
+            global_step = 0
+        epochs_trained = global_step // (len(train_dataloader) // args.gradient_accumulation_steps)
+        steps_trained_in_current_epoch = global_step % (len(train_dataloader) // args.gradient_accumulation_steps)
+
+        logger.info("  Continuing training from checkpoint, will skip to saved global_step")
+        logger.info("  Continuing training from epoch %d", epochs_trained)
+        logger.info("  Continuing training from global step %d", global_step)
+        logger.info(
+            "  Will skip the first %d steps in the first epoc and not isinstance(model, torch.nn.DataParallel)h",
+            steps_trained_in_current_epoch)
+
+    tr_loss, logging_loss = 0.0, 0.0
+    model_student.zero_grad()
+
+    set_seed(args)  # Added here for reproductibility
+
+    if phase == 1:
+        train_iterator = trange(
+            epochs_trained, int(args.num_train_epochs_phase_1), desc="Epoch", disable=args.local_rank not in [-1, 0],
+        )
+        temp = 1
+    else:
+        train_iterator = trange(
+            epochs_trained, int(args.num_train_epochs_phase_2), desc="Epoch", disable=args.local_rank not in [-1, 0],
+        )
+
+    for i in train_iterator:
+        # If the phase is 1, then we need to increment the temperature after every (num_epochs_phase_1/max_temp) epochs
+        # For e.g. num_epochs_phase_1 = 20, max_temp = 10, then we increment temperature value after every 2 epochs
+        if phase == 1:
+            if i % int(args.num_train_epochs_phase_1 / args.max_temperature) == 0 and i > 0:
+                temp += 1
+                print(f"temperature is {temp}")
+
+        # Determine the metric based on task, then run evaluation and save model if better than current best result
+        epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
+        print("Intermediate evaluate: ", evaluate(args, model_student, tokenizer))
+
+        for step, batch in enumerate(epoch_iterator):
+            # Skip past any already trained steps if resuming training
+            if steps_trained_in_current_epoch > 0:
+                steps_trained_in_current_epoch -= 1
+                continue
+
+            model_student.train()
+            model_teacher.eval()
+            batch = tuple(t.to(args.device) for t in batch)
+            inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
+            if args.model_type != "distilbert":
+                inputs["token_type_ids"] = (
+                    batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None
+                )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+
+            # Get the Student and Teacher outputs, and the groundtruth labels
+            S = model_student(input_ids=batch[0], attention_mask=batch[1],
+                              token_type_ids=batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None)[0]
+            T = model_teacher(input_ids=batch[0], attention_mask=batch[1],
+                              token_type_ids=batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None)[0]
+            labels = batch[3]
+
+            # Calculate loss based on phase
+            # In Phase 1, use MSE loss between student and Annealed teacher output
+            # In Phase 2, use Cross-entropy loss between student and true labels
+            if phase == 1:
+                loss = F.mse_loss(S, T * (temp / args.max_temperature))
+                loss = F.mse_loss(S, T * (temp / args.max_temperature))
+            else:
+                # STS-B is a regression task, so MSE loss but other tasks are classfication
+                if args.task_name == 'sts-b':
+                    loss = F.mse_loss(S, labels)
+                else:
+                    loss = F.cross_entropy(S, labels)
+
+            if args.n_gpu > 1:
+                loss = loss.mean()  # mean() to average on multi-gpu parallel training
+            if args.gradient_accumulation_steps > 1:
+                loss = loss / args.gradient_accumulation_steps
+
+            if args.fp16:
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
+
+            tr_loss += loss.item()
+            if (step + 1) % args.gradient_accumulation_steps == 0 or (
+                    # last step in epoch but step is always smaller than gradient_accumulation_steps
+                    len(epoch_iterator) <= args.gradient_accumulation_steps
+                    and (step + 1) == len(epoch_iterator)
+            ):
+                if args.fp16:
+                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
+                else:
+                    torch.nn.utils.clip_grad_norm_(model_student.parameters(), args.max_grad_norm)
+
+                optimizer.step()
+                scheduler.step()  # Update learning rate schedule
+                model_student.zero_grad()
+                global_step += 1
+
+                if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                    logs = {}
+                    if (
+                            args.local_rank == -1 and args.evaluate_during_training
+                    ):  # Only evaluate when single GPU otherwise metrics may not average well
+                        results = evaluate(args, model_student, tokenizer)
+                        for key, value in results.items():
+                            eval_key = "eval_{}".format(key)
+                            logs[eval_key] = value
+
+                    loss_scalar = (tr_loss - logging_loss) / args.logging_steps
+                    learning_rate_scalar = scheduler.get_lr()[0]
+                    logs["learning_rate"] = learning_rate_scalar
+                    logs["loss"] = loss_scalar
+                    logging_loss = tr_loss
+
+                    for key, value in logs.items():
+                        tb_writer.add_scalar(key, value, global_step)
+                    print(json.dumps({**logs, **{"step": global_step}}))
+
+                if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
+                    # Save model checkpoint
+                    output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
+                    if not os.path.exists(output_dir):
+                        os.makedirs(output_dir)
+                    model_to_save = (
+                        model_student.module if hasattr(model_student, "module") else model_student
+                    )  # Take care of distributed/parallel training
+                    model_to_save.save_pretrained(output_dir)
+                    tokenizer.save_pretrained(output_dir)
+
+                    torch.save(args, os.path.join(output_dir, "training_args.bin"))
+                    logger.info("Saving model checkpoint to %s", output_dir)
+
+                    torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+                    torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+                    logger.info("Saving optimizer and scheduler states to %s", output_dir)
+
+            if args.max_steps > 0 and global_step > args.max_steps:
+                epoch_iterator.close()
+                break
+            if args.max_steps > 0 and global_step > args.max_steps:
+                train_iterator.close()
+                break
+
+    if args.local_rank in [-1, 0]:
+        tb_writer.close()
+
+    return global_step, tr_loss / global_step
+
+
 
 def evaluate(args, model, tokenizer, prefix=""):
     global BEST_ACCURACY
@@ -555,7 +704,6 @@ def evaluate(args, model, tokenizer, prefix=""):
 
     return results
 
-
 def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     if args.local_rank not in [-1, 0] and not evaluate:
         torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
@@ -621,6 +769,10 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Required parameters
+    parser.add_argument("--init_temperature", type=float, default=8.0)
+    parser.add_argument("--max_temperature", type=float, default=8.0)
+    parser.add_argument("--min_temperature", type=float, default=4.0)
+
     parser.add_argument(
         "--data_dir",
         default=None,
