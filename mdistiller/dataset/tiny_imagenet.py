@@ -341,7 +341,7 @@ def get_tiny_imagenet_dataloaders(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
 ):
-    DIR_MAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../data/tiny-imagenet-200')
+    DIR_MAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../data/tiny-imagenet-200/')
     DIR_TRAIN = DIR_MAIN + 'train/'
     DIR_VAL = DIR_MAIN + 'val/'
     DIR_TEST = DIR_MAIN + 'test/'
