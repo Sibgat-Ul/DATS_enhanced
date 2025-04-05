@@ -5,6 +5,7 @@ import wandb
 import gc
 
 import torch.backends.cudnn as cudnn
+from torch.nn.functional import dropout
 
 from mdistiller.models import cifar_model_dict, imagenet_model_dict
 from mdistiller.distillers import distiller_dict
