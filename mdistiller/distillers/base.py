@@ -30,7 +30,7 @@ class Distiller(nn.Module):
         raise NotImplementedError()
 
     def forward_test(self, image):
-        return self.student(image)
+        return self.student(image)[0]
 
     def forward(self, **kwargs):
         if self.training:

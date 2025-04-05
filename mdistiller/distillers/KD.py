@@ -58,3 +58,9 @@ class KD(Distiller):
             return logits_student, losses_dict, loss_divergence
 
         return logits_student, losses_dict
+
+    def forward_test(self, image):
+        if self.cfg.DATASET.TYPE != "tiny_imagenet":
+            return self.student(image)[0]
+        else:
+            logits_student = self.student(image)
