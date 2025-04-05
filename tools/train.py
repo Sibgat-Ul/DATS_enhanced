@@ -9,7 +9,7 @@ import torch.backends.cudnn as cudnn
 from mdistiller.models import cifar_model_dict, imagenet_model_dict
 from mdistiller.distillers import distiller_dict
 from mdistiller.dataset import get_dataset, get_dataset_strong
-from mdistiller.engine.utils import load_checkpoint, log_msg
+from mdistiller.engine.utils import load_checkpoint, log_msg, AverageMeter, accuracy
 from mdistiller.engine.cfg import CFG as cfg
 from mdistiller.engine.cfg import show_cfg
 from mdistiller.engine import trainer_dict
@@ -130,6 +130,44 @@ def main(cfg, resume, opts):
                 distiller = distiller_dict[cfg.DISTILLER.TYPE](
                     model_student, model_teacher, cfg
                 )
+
+    ### validate Teacher:
+    if args.validate_teacher:
+        import time
+        from tqdm import tqdm
+        from mdistiller.engine.utils import AverageMeter, accuracy
+
+        batch_time, losses, top1, top5 = [AverageMeter() for _ in range(4)]
+        criterion = torch.nn.CrossEntropyLoss()
+        num_iter = len(val_loader)
+        pbar = tqdm(range(num_iter))
+
+        model_teacher.eval()
+        with torch.no_grad():
+            start_time = time.time()
+            for idx, (image, target) in enumerate(val_loader):
+                image = image.float()
+                image = image.cuda(non_blocking=True)
+                target = target.cuda(non_blocking=True)
+                output = model_teacher(image=image)
+                loss = criterion(output, target)
+
+                acc1, acc5 = accuracy(output, target, topk=(1, 5))
+                batch_size = image.size(0)
+                losses.update(loss.cpu().detach().numpy().mean(), batch_size)
+                top1.update(acc1[0], batch_size)
+                top5.update(acc5[0], batch_size)
+
+                # measure elapsed time
+                batch_time.update(time.time() - start_time)
+                start_time = time.time()
+                msg = "Top-1: {:.2f}| Top-5: {:.2f}| Loss: {:.2f}".format(
+                    top1.avg, top5.avg, losses.avg
+                )
+                pbar.set_description(log_msg(msg, "EVAL"))
+                pbar.update()
+        pbar.close()
+        print(f"Teacher Acc1, 5, loss: {top1.avg}, {top5.avg}, {losses.avg}")
 
     if cfg.REUSE:
         if cfg.DISTILLER.TYPE == "MLKD":
@@ -365,11 +403,12 @@ if __name__ == "__main__":
     parser.add_argument("--logit_stand", action="store_true")
     parser.add_argument("--base_temp", type=float, default=2)
     parser.add_argument("--kd_weight", type=float, default=9)
-    parser.add_argument("--num_epochs", type=int, default=100)
 
     parser.add_argument("--reuse", action="store_true")
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--curve_shape", type=float, default=1)
+
+    parser.add_argument("--validate_teacher", action="store_true")
 
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 

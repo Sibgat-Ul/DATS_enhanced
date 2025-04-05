@@ -38,7 +38,6 @@ def validate(val_loader, distiller):
             image = image.float()
             image = image.cuda(non_blocking=True)
             target = target.cuda(non_blocking=True)
-            print(image.shape, target.shape)
             output = distiller(image=image)
             loss = criterion(output, target)
 
