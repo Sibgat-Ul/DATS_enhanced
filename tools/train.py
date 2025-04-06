@@ -114,9 +114,20 @@ def main(cfg, resume, opts):
             )
 
             if cfg.REUSE:
-                model_student_2 = cifar_model_dict[cfg.DISTILLER.STUDENT][0](
-                num_classes=num_classes
-            )
+                if cfg.DATASET.TYPE == "tiny_imagenet":
+                    model_student_2 = tiny_imagenet_collection[cfg.DISTILLER.STUDENT]
+                    if cfg.DISTILLER.STUDENT != "MobileNetV2":
+                        model_student_2.fc = torch.nn.Linear(model_student_2.fc.in_features, 200)
+                    else:
+                        model_student_2.classifier = torch.nn.Sequential(
+                            torch.nn.Dropout(p=0.2),
+                            torch.nn.Linear(model_student_2.last_channel, 200),
+                        )
+
+                elif cfg.DATASET.TYPE == "cifar100":
+                    model_student_2 = cifar_model_dict[cfg.DISTILLER.STUDENT][0](
+                        num_classes=num_classes
+                    )
 
         if cfg.DISTILLER.TYPE == "CRD":
             distiller = distiller_dict[cfg.DISTILLER.TYPE](
