@@ -92,7 +92,7 @@ class DynamicTemperatureScheduler():
         self.max_temperature = cfg.MAX_TEMPERATURE
         self.max_epochs = cfg.EPOCHS
         self.adjust_temp = True
-        self.curve_shape = 0.5
+        self.curve_shape = 1
 
     def update_temperature(self, current_epoch, loss_divergence):
         progress = torch.tensor(current_epoch / self.max_epochs)

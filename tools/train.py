@@ -82,8 +82,8 @@ def main(cfg, resume, opts):
                 "ResNet34": torchvision.models.resnet34(pretrained=True),
                 "ResNet50": torchvision.models.resnet50(pretrained=True),
                 # students:
-                "ResNet18": torchvision.models.resnet18(pretrained=False),
-                "MobileNetV2": torchvision.models.mobilenet_v2(pretrained=False),
+                "ResNet18": torchvision.models.resnet18(pretrained=True),
+                "MobileNetV2": torchvision.models.mobilenet_v2(pretrained=True),
             }
 
             model_teacher = tiny_imagenet_collection[cfg.DISTILLER.TEACHER]
@@ -92,7 +92,13 @@ def main(cfg, resume, opts):
             model_teacher.load_state_dict(torch.load(weight_path, weights_only=True))
 
             model_student = tiny_imagenet_collection[cfg.DISTILLER.STUDENT]
-            model_student.fc = torch.nn.Linear(model_student.fc.in_features, 200)
+            if cfg.DISTILLER.STUDENT != "MobileNetV2":
+                model_student.fc = torch.nn.Linear(model_student.fc.in_features, 200)
+            else:
+                model_student.classifier = torch.nn.Sequential(
+                    torch.nn.Dropout(p=0.2),
+                    torch.nn.Linear(model_student.last_channel, 200),
+                )
         else:
             net, pretrain_model_path = cifar_model_dict[cfg.DISTILLER.TEACHER]
 

@@ -63,4 +63,4 @@ class KD(Distiller):
         if self.cfg.DATASET.TYPE != "tiny_imagenet":
             return self.student(image)[0]
         else:
-            logits_student = self.student(image)
+            return self.student(image)
