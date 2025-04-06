@@ -50,6 +50,16 @@ def main(cfg, resume, opts):
         #show_cfg(cfg)
         print(log_msg("\nTrainer: {}\n Distiller: {}".format(cfg.SOLVER.TRAINER, cfg.DISTILLER.TYPE), "INFO"))
 
+    if cfg.DATASET.TYPE == "tiny_imagenet":
+        tiny_imagenet_collection = {
+            # teachers:
+            "ResNet34": torchvision.models.resnet34(pretrained=True),
+            "ResNet50": torchvision.models.resnet50(pretrained=True),
+            # students:
+            "ResNet18": torchvision.models.resnet18(pretrained=True),
+            "MobileNetV2": torchvision.models.mobilenet_v2(pretrained=True),
+        }
+
     # init dataloader & models
     if cfg.DISTILLER.TYPE == 'MLKD':
         train_loader, val_loader, num_data, num_classes = get_dataset_strong(cfg)
@@ -167,7 +177,7 @@ def main(cfg, resume, opts):
                 image = image.float()
                 image = image.cuda(non_blocking=True)
                 target = target.cuda(non_blocking=True)
-                output = model_teacher(image=image)
+                output = model_teacher(image)
                 loss = criterion(output, target)
 
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
