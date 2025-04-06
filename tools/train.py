@@ -171,6 +171,7 @@ def main(cfg, resume, opts):
         pbar = tqdm(range(num_iter))
 
         model_teacher.eval()
+        model_teacher.device("cuda")
         with torch.no_grad():
             start_time = time.time()
             for idx, (image, target) in enumerate(val_loader):
