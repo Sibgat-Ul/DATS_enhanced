@@ -37,18 +37,15 @@ def normalize(logit):
 def logit_distill_loss(logits_t, logits_s, loss_type, temperature, logit_standard, extra_weight_in=10):
     logits_s_ = normalize(logits_s) if logit_standard else logits_s
     logits_t_ = normalize(logits_t) if logit_standard else logits_t
-    extra_weight = extra_weight_in if logit_standard else 1
 
-    kl_loss = 0.9 * F.kl_div(
+    kl_loss = F.kl_div(
         F.log_softmax(logits_s_ / temperature, dim=1),
         F.softmax(logits_t_ / temperature, dim=1),
         reduction='none',
         # log_target=True
     ).sum(1).mean() * (temperature * temperature)
 
-    ce_loss = 0.1 * F.cross_entropy(logits_s, logits_t.argmax(dim=1))
-
-    return kl_loss + ce_loss
+    return kl_loss
 
 class DistillationWrapper(nn.Module):
 
@@ -174,11 +171,11 @@ class DistillationWrapper(nn.Module):
             self.update_temperature(epoch, loss_divergence)
 
         loss_logit = logit_distill_loss(
-            logits_t,
-            logits_s,
-            self.logit_loss_type,
-            temperature=self.current_temperature if self.scheduler else self.temperature,
-            logit_standard=self.logit_standard,
+                logits_t,
+                logits_s,
+                self.logit_loss_type,
+                temperature=self.current_temperature if self.scheduler else self.temperature,
+                logit_standard=self.logit_standard,
             ) if self.logit_standard or self.scheduler else x.new_tensor(0.0)
 
         return loss_inter, loss_logit

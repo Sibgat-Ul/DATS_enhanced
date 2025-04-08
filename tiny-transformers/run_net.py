@@ -29,6 +29,7 @@ def parse_args():
     help_s = "Config file location"
     parser.add_argument("--epochs", help=help_s, default=100, type=int)
     parser.add_argument("--use_scheduler", help=help_s, action="store_true")
+    parser.add_argument("--use_inter", help=help_s, action="store_true")
     parser.add_argument("--min_temp", type=float, help=help_s, default=2)
     parser.add_argument("--max_temp", type=float, help=help_s, default=6)
     parser.add_argument("--init_temp", type=float, help=help_s, default=6)
@@ -55,6 +56,8 @@ def main():
     cfg.TEMPERATURE.MAX = args.max_temp
     cfg.TEMPERATURE.INIT = args.init_temp
     cfg.DISTILLATION.CURVE_SHAPE = args.curve_shape
+    cfg.DISTILLATION.ENABLE_INTER = args.use_inter
+
     if cfg.OUT_DIR is None:
         out_dir = os.path.join('work_dirs', os.path.splitext(os.path.basename(args.cfg))[0])
         cfg.OUT_DIR = out_dir

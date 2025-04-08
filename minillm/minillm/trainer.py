@@ -38,55 +38,6 @@ from .losses import Loss
 from utils import print_rank, save_rank, get_rank, all_gather, save_parallel
 from rouge_metric import compute_metrics
 
-
-class DynamicTemperatureScheduler(PPOTrainer):
-    def __init__(
-        self,
-        args,
-        tokenizer,
-        reward_fn,
-        ds_config
-    ):
-        super(DynamicTemperatureScheduler, self).__init__(args, tokenizer, reward_fn, ds_config)
-
-        self.initial_temperature = args.initial_temperature
-        self.current_temperature = self.initial_temperature
-        self.min_temperature = args.min_temperature
-        self.max_temperature = args.max_temperature
-        self.max_epochs = args.training_epochs
-        self.has_temp = True
-        self.adjust_temp = args.adjust_temp
-        self.curve_shape = args.curve_shape
-        args.temperature = self.current_temperature
-
-    def update_temperature(self, current_epoch, loss_divergence):
-        progress = torch.tensor(current_epoch / self.max_epochs)
-        cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape * torch.pi * progress))
-
-        if self.adjust_temp is True:
-            adaptive_scale = loss_divergence / (loss_divergence + 1)
-
-            if adaptive_scale > 1:
-                if adaptive_scale > 2:
-                    adaptive_scale = 1.35
-                target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
-            else:
-                target_temperature = self.initial_temperature * cosine_factor
-        else:
-            target_temperature = self.initial_temperature * cosine_factor
-
-        target_temperature = torch.clamp(
-            target_temperature,
-            self.min_temperature,
-            self.max_temperature
-        )
-
-        # target_temperature = round(target_temperature.item(), 2)
-
-        momentum = 0.9
-        self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
-        self.args.temperature = self.current_temperature
-
 class PPOTrainer():
     """
     RL model trainer with an `accelerate` based backend

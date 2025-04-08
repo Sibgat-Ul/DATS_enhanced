@@ -98,15 +98,27 @@ def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, mete
             preds = model(inputs)
             loss_cls = loss_fun(preds, labels_one_hot)
             loss, loss_inter, loss_logit = loss_cls, inputs.new_tensor(0.0), inputs.new_tensor(0.0)
+
+            distill_loss = 0.0
+            inter_distill_loss = 0.0
+
             if hasattr(net.unwrap_model(model), 'guidance_loss'):
                 loss_inter, loss_logit = net.unwrap_model(model).guidance_loss(inputs, offline_features, cur_epoch+1, labels)
+
                 if cfg.DISTILLATION.ENABLE_LOGIT:
-                    loss_cls = loss_cls * 0.5
-                    loss_logit = loss_logit * cfg.DISTILLATION.LOGIT_WEIGHT
+                    loss_cls = loss_cls * 0.15
+                    loss_logit = loss_logit * 0.85
                     loss = loss_cls + loss_logit
+                    distill_loss = loss
+
                 if cfg.DISTILLATION.ENABLE_INTER:
                     loss_inter = loss_inter * cfg.DISTILLATION.INTER_WEIGHT
                     loss = loss_cls + loss_inter
+                    distill_loss = loss_inter
+
+                if cfg.DISTILLATION.ENABLE_LOGIT and cfg.DISTILLATION.ENABLE_INTER:
+                    loss = distill_loss
+
         optimizer.zero_grad()
         scaler.scale(loss).backward()
         scaler.step(optimizer)

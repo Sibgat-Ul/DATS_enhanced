@@ -55,8 +55,8 @@ class DynamicTemperatureScheduler(PPOTrainer):
         self.max_temperature = args.max_temperature
         self.max_epochs = args.training_epochs
         self.has_temp = True
-        self.adjust_temp = args.adjust_temp
-        self.curve_shape = args.curve_shape
+        self.adjust_temp = True
+        self.curve_shape = 1
         args.temperature = self.current_temperature
 
     def update_temperature(self, current_epoch, loss_divergence):

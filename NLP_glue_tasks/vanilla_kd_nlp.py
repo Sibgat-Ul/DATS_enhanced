@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-
 class DistillationPipeline:
     def __init__(self, teacher_checkpoint, student_checkpoint, num_labels, device='cuda'):
         # Initialize models
