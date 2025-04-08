@@ -35,22 +35,20 @@ def normalize(logit):
     return (logit - mean) / (1e-7+stdv)
 
 def logit_distill_loss(logits_t, logits_s, loss_type, temperature, logit_standard, extra_weight_in=10):
-    if loss_type == "soft":
-        logits_s_ = normalize(logits_s) if logit_standard else logits_s
-        logits_t_ = normalize(logits_t) if logit_standard else logits_t
-        extra_weight = extra_weight_in if logit_standard else 1
-        distillation_loss = extra_weight * F.kl_div(
-            F.log_softmax(logits_s_ / temperature, dim=1),
-            F.softmax(logits_t_ / temperature, dim=1),
-            reduction='none',
-            # log_target=True
-        ).sum(1).mean() * (temperature * temperature)
-    elif loss_type == "hard":
-        distillation_loss = F.cross_entropy(logits_s, logits_t.argmax(dim=1))
-    else:
-        raise NotImplementedError
+    logits_s_ = normalize(logits_s) if logit_standard else logits_s
+    logits_t_ = normalize(logits_t) if logit_standard else logits_t
+    extra_weight = extra_weight_in if logit_standard else 1
 
-    return distillation_loss
+    kl_loss = 0.9 * F.kl_div(
+        F.log_softmax(logits_s_ / temperature, dim=1),
+        F.softmax(logits_t_ / temperature, dim=1),
+        reduction='none',
+        # log_target=True
+    ).sum(1).mean() * (temperature * temperature)
+
+    ce_loss = 0.1 * F.cross_entropy(logits_s, logits_t.argmax(dim=1))
+
+    return kl_loss + ce_loss
 
 class DistillationWrapper(nn.Module):
 
@@ -100,9 +98,9 @@ class DistillationWrapper(nn.Module):
 
     def update_temperature(self, current_epoch, loss_divergence):
         progress = torch.tensor(current_epoch / self.max_epoch)
-        cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape * torch.pi * progress))
-        # adaptive_scale = loss_divergence / (loss_divergence + 1)
-        adaptive_scale = -1.0 * loss_divergence if loss_divergence < 0 else 1.0 * loss_divergence
+        cosine_factor = 0.5 * (1 + torch.cos(torch.pi * progress))
+        adaptive_scale = loss_divergence / (loss_divergence + 1)
+        # adaptive_scale = -1.0 * loss_divergence if loss_divergence < 0 else 1.0 * loss_divergence
         if adaptive_scale > 1:
             if adaptive_scale > 2:
                 adaptive_scale = 1.5
@@ -172,6 +170,7 @@ class DistillationWrapper(nn.Module):
             t_loss = F.cross_entropy(logits_t, target)
             s_loss = F.cross_entropy(logits_s, target)
             loss_divergence = t_loss.item() - s_loss.item()
+
             self.update_temperature(epoch, loss_divergence)
 
         loss_logit = logit_distill_loss(
@@ -180,7 +179,6 @@ class DistillationWrapper(nn.Module):
             self.logit_loss_type,
             temperature=self.current_temperature if self.scheduler else self.temperature,
             logit_standard=self.logit_standard,
-            extra_weight_in=self.extra_weight_in) if self.logit_standard or self.scheduler else x.new_tensor(
-            0.0)
+            ) if self.logit_standard or self.scheduler else x.new_tensor(0.0)
 
         return loss_inter, loss_logit
