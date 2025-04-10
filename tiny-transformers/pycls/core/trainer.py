@@ -106,8 +106,8 @@ def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, mete
                 loss_inter, loss_logit = net.unwrap_model(model).guidance_loss(inputs, offline_features, cur_epoch+1, labels)
 
                 if cfg.DISTILLATION.ENABLE_LOGIT:
-                    loss_cls = loss_cls * 0.5
-                    loss_logit = loss_logit * 2
+                    loss_cls = loss_cls * 0.1
+                    loss_logit = loss_logit * 0.9
                     loss = loss_cls + loss_logit
                     distill_loss = loss
 
@@ -117,7 +117,7 @@ def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, mete
                     inter_loss = loss_inter
 
                 if cfg.DISTILLATION.ENABLE_LOGIT and cfg.DISTILLATION.ENABLE_INTER:
-                    loss = distill_loss + inter_loss
+                    loss = 2 * distill_loss + inter_loss
 
         optimizer.zero_grad()
         scaler.scale(loss).backward()
