@@ -40,6 +40,7 @@ def parse_args():
     parser.add_argument("--init_temp", type=float, help=help_s, default=6)
     parser.add_argument("--logit_stand", action="store_true")
     parser.add_argument("--curve_shape", type=float, default=1.0)
+    parser.add_argument("--n_gpu", type=float, default=1.0)
     parser.add_argument("--cfg", help=help_s, required=True, type=str)
     help_s = "See pycls/core/config.py for all options"
     parser.add_argument("opts", help=help_s, default=None, nargs=argparse.REMAINDER)
@@ -62,6 +63,7 @@ def main():
     cfg.DISTILLATION.EXTRA_WEIGHT_IN = args.extra_kd_weight
 
     cfg.OPTIM.MAX_EPOCH = args.epochs
+    cfg.NUM_GPUS = args.n_gpu
 
     cfg.TEMPERATURE.MIN = args.min_temp
     cfg.TEMPERATURE.MAX = args.max_temp
