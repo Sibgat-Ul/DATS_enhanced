@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument("--init_temp", type=float, help=help_s, default=6)
     parser.add_argument("--logit_stand", action="store_true")
     parser.add_argument("--curve_shape", type=float, default=1.0)
-    parser.add_argument("--n_gpu", type=float, default=1.0)
+    parser.add_argument("--n_gpu", type=int, default=1)
     parser.add_argument("--cfg", help=help_s, required=True, type=str)
     help_s = "See pycls/core/config.py for all options"
     parser.add_argument("opts", help=help_s, default=None, nargs=argparse.REMAINDER)
