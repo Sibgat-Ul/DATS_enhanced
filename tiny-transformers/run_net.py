@@ -32,8 +32,8 @@ def parse_args():
     parser.add_argument("--use_inter", help=help_s, action="store_true")
 
     parser.add_argument("--inter_weight", help=help_s, type=float, default=2.5)
-    parser.add_argument("--kd_weight", help=help_s, type=float, default=2.5)
-    parser.add_argument("--extra_kd_weight", help=help_s, type=float, default=9)
+    parser.add_argument("--kd_weight", help=help_s, type=float, default=0.5)
+    parser.add_argument("--extra_kd_weight", help=help_s, type=float, default=2.5)
 
     parser.add_argument("--min_temp", type=float, help=help_s, default=2)
     parser.add_argument("--max_temp", type=float, help=help_s, default=6)
