@@ -61,7 +61,7 @@ def setup_model(setup_ema=True):
     model_state = model.state_dict()
     if cfg.NUM_GPUS > 1:
         ddp = torch.nn.parallel.DistributedDataParallel
-        model = ddp(module=model, device_ids=[cur_device], output_device=cur_device)
+        model = ddp(module=model, device_ids=[cur_device], output_device=cur_device, find_unused_parameters=True)
     if not setup_ema:
         return model
     else:
@@ -70,7 +70,7 @@ def setup_model(setup_ema=True):
         ema.load_state_dict(model_state)
         if cfg.NUM_GPUS > 1:
             ddp = torch.nn.parallel.DistributedDataParallel
-            ema = ddp(module=ema, device_ids=[cur_device], output_device=cur_device)
+            ema = ddp(module=ema, device_ids=[cur_device], output_device=cur_device, find_unused_parameters=True)
         return model, ema
 
 
