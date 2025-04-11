@@ -85,15 +85,18 @@ def get_weights_file(weights_file):
 def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, meter, cur_epoch):
     data_loader.shuffle(loader, cur_epoch)
     lr = optim.get_current_lr(optimizer)
+
     model.train()
     ema.train()
     meter.reset()
     meter.iter_tic()
+
     for cur_iter, (inputs, labels, offline_features) in enumerate(loader):
         inputs, labels = inputs.cuda(), labels.cuda(non_blocking=True)
         offline_features = [f.cuda() for f in offline_features]
         labels_one_hot = net.smooth_one_hot_labels(labels)
         inputs, labels_one_hot, labels = net.mixup(inputs, labels_one_hot)
+
         with amp.autocast(enabled=cfg.TRAIN.MIXED_PRECISION):
             preds = model(inputs)
             loss_cls = loss_fun(preds, labels_one_hot)
@@ -106,8 +109,8 @@ def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, mete
                 loss_inter, loss_logit = net.unwrap_model(model).guidance_loss(inputs, offline_features, cur_epoch+1, labels)
 
                 if cfg.DISTILLATION.ENABLE_LOGIT:
-                    loss_cls = loss_cls * 0.1
-                    loss_logit = loss_logit * 0.9
+                    loss_cls = loss_cls * (1 - cfg.DISTILLATION.LOGIT_WEIGHT)
+                    loss_logit = loss_logit * cfg.DISTILLATION.LOGIT_WEIGHT
                     loss = loss_cls + loss_logit
                     distill_loss = loss
 
@@ -117,7 +120,7 @@ def train_epoch(loader, model, ema, loss_fun, optimizer, scheduler, scaler, mete
                     inter_loss = loss_inter
 
                 if cfg.DISTILLATION.ENABLE_LOGIT and cfg.DISTILLATION.ENABLE_INTER:
-                    loss = 2 * distill_loss + inter_loss
+                    loss = cfg.DISTILLATION.EXTRA_WEIGHT_IN * distill_loss + inter_loss
 
         optimizer.zero_grad()
         scaler.scale(loss).backward()

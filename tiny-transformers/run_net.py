@@ -30,6 +30,11 @@ def parse_args():
     parser.add_argument("--epochs", help=help_s, default=100, type=int)
     parser.add_argument("--use_scheduler", help=help_s, action="store_true")
     parser.add_argument("--use_inter", help=help_s, action="store_true")
+
+    parser.add_argument("--inter_weight", help=help_s, type=float, default=2.5)
+    parser.add_argument("--kd_weight", help=help_s, type=float, default=2.5)
+    parser.add_argument("--extra_kd_weight", help=help_s, type=float, default=9)
+
     parser.add_argument("--min_temp", type=float, help=help_s, default=2)
     parser.add_argument("--max_temp", type=float, help=help_s, default=6)
     parser.add_argument("--init_temp", type=float, help=help_s, default=6)
@@ -49,12 +54,19 @@ def main():
     mode = args.mode
     config.load_cfg(args.cfg)
     cfg.merge_from_list(args.opts)
+
     cfg.DISTILLATION.SCHEDULE = args.use_scheduler
     cfg.DISTILLATION.LOGIT_STANDARD = args.logit_stand
+    cfg.DISTILLATION.INTER_WEIGHT = args.inter_weight
+    cfg.DISTILLATION.LOGIT_WEIGHT = args.kd_weight
+    cfg.DISTILLATION.EXTRA_WEIGHT_IN = args.extra_kd_weight
+
     cfg.OPTIM.MAX_EPOCH = args.epochs
+
     cfg.TEMPERATURE.MIN = args.min_temp
     cfg.TEMPERATURE.MAX = args.max_temp
     cfg.TEMPERATURE.INIT = args.init_temp
+
     cfg.DISTILLATION.CURVE_SHAPE = args.curve_shape
     cfg.DISTILLATION.ENABLE_INTER = args.use_inter
 

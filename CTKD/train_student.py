@@ -23,6 +23,7 @@ import torch.optim as optim
 from crd.criterion import CRDLoss
 from dataset.cifar100 import (get_cifar100_dataloaders,
                               get_cifar100_dataloaders_sample)
+from dataset.tiny_imagenet import get_tiny_imagenet_dataloaders
 from distiller_zoo import PKT, DistillKL, DKDloss, Similarity, VIDLoss, DistillKL_logit_stand
 from helper.loops import train_distill as train
 from helper.loops import validate
@@ -58,7 +59,7 @@ def parse_option():
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 
     # dataset
-    parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar100', 'imagenet', 'imagenette'], help='dataset')
+    parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar100', 'imagenet', 'tiny_imagenet'], help='dataset')
 
     # model
     parser.add_argument('--model_s', type=str, default='resnet8',
@@ -273,6 +274,7 @@ def main_worker(gpu, ngpus_per_node, opt):
         'cifar100': 100,
         'imagenet': 1000,
         'imagenette': 10,
+        'tiny_imagenet': 200,
     }
     if opt.dataset not in class_num_map:
         raise NotImplementedError(opt.dataset)
@@ -390,6 +392,8 @@ def main_worker(gpu, ngpus_per_node, opt):
         else:
             train_loader, val_loader = get_cifar100_dataloaders(batch_size=opt.batch_size,
                                                                         num_workers=opt.num_workers)
+    elif opt.dataset == 'tiny_imagenet':
+        train_loader, val_loader, n_class = get_tiny_imagenet_dataloaders(batch_size=opt.batch_size,val_batch_size=opt.val_batch_size, num_workers=opt.num_workers)
     else:
         raise NotImplementedError(opt.dataset)
 
