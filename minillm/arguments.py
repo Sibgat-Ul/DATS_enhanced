@@ -124,7 +124,7 @@ def add_hp_args(parser: argparse.ArgumentParser):
     group.add_argument("--attn-dtype", default=None)
     
     group.add_argument('--lr', type=float, help='initial learning rate')
-    group.add_argument("--lr-min", type=float, default=0.0000001)
+    group.add_argument("--lr-min", type=float, default=1.0e-7)
     group.add_argument('--weight-decay', type=float, default=1.0e-2,
                        help='weight-decay')
     group.add_argument('--loss-scale', type=float, default=65536,
