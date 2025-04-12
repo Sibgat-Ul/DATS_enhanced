@@ -176,9 +176,9 @@ def add_gen_args(parser: argparse.ArgumentParser):
 
     # ===========================Scheduler============================== #
     group.add_argument("--use_scheduler", action="store_true")
-    group.add_argument("--init_temperature", type=float, default=3)
-    group.add_argument("--max_temperature", type=float, default=3)
-    group.add_argument("--min_temperature", type=float, default=1)
+    group.add_argument("--init_temperature", type=float, default=3.0)
+    group.add_argument("--max_temperature", type=float, default=3.0)
+    group.add_argument("--min_temperature", type=float, default=1.0)
     # ===========================Scheduler============================== #
 
     group.add_argument("--top-k", type=int, default=0)
