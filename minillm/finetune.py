@@ -216,7 +216,7 @@ def get_teacher_lm_loss(args, tokenizer, model, teacher_model, model_batch):
 
 class DynamicTemperatureScheduler:
     def __init__(self, args):
-        self.initial_temperature = args.initial_temperature
+        self.initial_temperature = args.init_temperature
         self.current_temperature = self.initial_temperature
         self.min_temperature = args.min_temperature
         self.max_temperature = args.max_temperature
