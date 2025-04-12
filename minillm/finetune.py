@@ -263,9 +263,9 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
     if args.use_scheduler:
         dts = DynamicTemperatureScheduler(args)
         print("#====DTS: On====#")
-        print("Init temp", args.init_temp)
-        print("min temp", args.min_temp)
-        print("Max temp: ", args.max_temp)
+        print("Init temp", args.init_temperature)
+        print("min temp", args.min_temperature)
+        print("Max temp: ", args.max_temperature)
         print("#===============#")
 
     if args.model_parallel:
