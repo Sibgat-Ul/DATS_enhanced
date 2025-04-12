@@ -154,11 +154,7 @@ def prepare_dataset(args, tokenizer):
     return data
 
 
-def get_distil_loss(args, tokenizer, model, teacher_model, model_batch, no_model_batch, logits):
-    with torch.no_grad():
-        teacher_model.eval()
-        teacher_outputs = teacher_model(**model_batch, use_cache=False)
-        teacher_logits = teacher_outputs.logits
+def get_distil_loss(args, teacher_logits, no_model_batch, logits):
     if args.model_parallel:
         distil_losses = mpu.parallel_soft_cross_entropy_loss(logits.float(), teacher_logits.float())
         distil_losses = distil_losses.view(-1)
@@ -218,12 +214,60 @@ def get_teacher_lm_loss(args, tokenizer, model, teacher_model, model_batch):
     return lm_loss
 
 
+class DynamicTemperatureScheduler:
+    def __init__(self, args):
+        self.initial_temperature = args.initial_temperature
+        self.current_temperature = self.initial_temperature
+        self.min_temperature = args.min_temperature
+        self.max_temperature = args.max_temperature
+        self.max_epochs = args.training_epochs
+        self.has_temp = True
+        self.adjust_temp = True
+        self.curve_shape = 1
+        args.temperature = self.current_temperature
+        self.args = args
+
+    def update_temperature(self, current_epoch, loss_divergence):
+        progress = torch.tensor(current_epoch / self.max_epochs)
+        cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape * torch.pi * progress))
+
+        if self.adjust_temp is True:
+            adaptive_scale = loss_divergence / (loss_divergence + 1)
+
+            if adaptive_scale > 1:
+                if adaptive_scale > 2:
+                    adaptive_scale = 1.35
+                target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
+            else:
+                target_temperature = self.initial_temperature * cosine_factor
+        else:
+            target_temperature = self.initial_temperature * cosine_factor
+
+        target_temperature = torch.clamp(
+            target_temperature,
+            self.min_temperature,
+            self.max_temperature
+        )
+
+        # target_temperature = round(target_temperature.item(), 2)
+
+        momentum = 0.9
+        self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
+        self.args.temperature = self.current_temperature
+
 def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer, 
              model: deepspeed.DeepSpeedEngine, optimizer: AdamW, 
              lr_scheduler, dataset, device: int, teacher_model: Optional[PreTrainedModel] = None):
     print_rank("Start Fine-tuning")
 
-    # print_inspect(model, '*')
+    if args.use_scheduler:
+        dts = DynamicTemperatureScheduler(args)
+        print("#====DTS: On====#")
+        print("Init temp", args.init_temp)
+        print("min temp", args.min_temp)
+        print("Max temp: ", args.max_temp)
+        print("#===============#")
+
     if args.model_parallel:
         dp_world_size = mpu.get_data_parallel_world_size()
         dp_rank = mpu.get_data_parallel_rank()
@@ -258,8 +302,8 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
             #     torch.save((model_batch, no_model_batch), os.path.join(args.save, "examples.pt"))
 
             outputs = model(**model_batch, use_cache=False)
-            
             logits = outputs.logits
+
             if args.model_parallel:
                 lm_losses = loss_func(logits.contiguous().float(), no_model_batch["label"]).view(-1)
                 loss_mask = no_model_batch["loss_mask"].view(-1)
@@ -268,8 +312,26 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                 lm_loss = loss_func(logits.float().view(-1, logits.shape[-1]), no_model_batch["label"].view(-1))
             
             if teacher_model is not None:
-                distil_loss = get_distil_loss(args, tokenizer, model, teacher_model, model_batch, no_model_batch, logits)
+
+                with torch.no_grad():
+                    teacher_model.eval()
+                    teacher_outputs = teacher_model(**model_batch, use_cache=False)
+                    teacher_logits = teacher_outputs.logits
+
+                    if args.use_scheduler:
+                        if args.model_parallel:
+                            ld = mpu.parallel_cross_entropy(logits.float(), teacher_logits.float())
+                        else:
+                            ld = torch.nn.functional.cross_entropy(logits.float(), teacher_logits.float())
+
+                        dts.update_temperature(epoch, ld)
+                        curr_temp = dts.current_temperature
+                        logits = logits/curr_temp
+                        teacher_logits = teacher_logits/curr_temp
+
+                distil_loss = get_distil_loss(args, teacher_logits, no_model_batch, logits)
                 loss = (1 - args.kd_ratio) * lm_loss + args.kd_ratio * distil_loss
+
             else:
                 loss = lm_loss
                 
@@ -293,19 +355,35 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
 
             # Logging
             def get_log(log_loss, log_distil_loss, log_time):
-                return "train | epoch {:3d} | Iter: {:6d}/{:6d} | global iter: {:6d}/{:6d} | loss: {:.4f} | ds_loss: {:.4f} | lr: {:.4e} | scale: {:10.4f} | micro time: {:.3f} | step time: {:.3f}".format(
-                    epoch,
-                    step,
-                    args.total_iters * args.gradient_accumulation_steps,
-                    global_step,
-                    args.total_iters,
-                    log_loss,
-                    log_distil_loss,
-                    lr_scheduler.get_last_lr()[0],
-                    optimizer.cur_scale if hasattr(optimizer, "cur_scale") else 0,
-                    elapsed_time,
-                    log_time,
-                )
+                if args.use_scheduler:
+                    return "train | epoch {:3d} | Iter: {:6d}/{:6d} | global iter: {:6d}/{:6d} | loss: {:.4f} | temp: {:.3f} | ds_loss: {:.4f} | lr: {:.4e} | scale: {:10.4f} | micro time: {:.3f} | step time: {:.3f}".format(
+                        epoch,
+                        step,
+                        args.total_iters * args.gradient_accumulation_steps,
+                        global_step,
+                        args.total_iters,
+                        log_loss,
+                        args.temperature,
+                        log_distil_loss,
+                        lr_scheduler.get_last_lr()[0],
+                        optimizer.cur_scale if hasattr(optimizer, "cur_scale") else 0,
+                        elapsed_time,
+                        log_time,
+                    )
+                else:
+                    return "train | epoch {:3d} | Iter: {:6d}/{:6d} | global iter: {:6d}/{:6d} | loss: {:.4f} | ds_loss: {:.4f} | lr: {:.4e} | scale: {:10.4f} | micro time: {:.3f} | step time: {:.3f}".format(
+                        epoch,
+                        step,
+                        args.total_iters * args.gradient_accumulation_steps,
+                        global_step,
+                        args.total_iters,
+                        log_loss,
+                        log_distil_loss,
+                        lr_scheduler.get_last_lr()[0],
+                        optimizer.cur_scale if hasattr(optimizer, "cur_scale") else 0,
+                        elapsed_time,
+                        log_time,
+                    )
 
             if args.mid_log_num > 0:
                 mid_log_step = args.gradient_accumulation_steps // args.mid_log_num

@@ -42,8 +42,8 @@ def add_model_args(parser: argparse.ArgumentParser):
 
 def add_runtime_args(parser: argparse.ArgumentParser):
     group = parser.add_argument_group('runtime', 'runtime configurations')
-
     group.add_argument("--type", type=str, default=None)
+
     group.add_argument("--do-train", action="store_true")
     group.add_argument("--do-valid", action="store_true")
     group.add_argument("--do-eval", action="store_true")
@@ -173,7 +173,14 @@ def add_minillm_args(parser: argparse.ArgumentParser):
 
 def add_gen_args(parser: argparse.ArgumentParser):
     group = parser.add_argument_group('generation', 'generation configurations')
-    
+
+    # ===========================Scheduler============================== #
+    group.add_argument("--use_scheduler", action="store_true")
+    group.add_argument("--init_temperature", type=float, default=3)
+    group.add_argument("--max_temperature", type=float, default=3)
+    group.add_argument("--min_temperature", type=float, default=1)
+    # ===========================Scheduler============================== #
+
     group.add_argument("--top-k", type=int, default=0)
     group.add_argument("--top-p", type=float, default=1.0)
     group.add_argument("--do-sample", action="store_true")
@@ -218,7 +225,7 @@ def get_args():
     args.local_rank = int(os.getenv("LOCAL_RANK", "0"))
         
     args.n_gpu = args.n_gpu * args.n_nodes
-        
+
     if args.type == "eval_main":
         ckpt_name = None
         if args.ckpt_name is not None:
