@@ -253,7 +253,6 @@ class DynamicTemperatureScheduler:
 
         momentum = 0.9
         self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
-        self.args.temperature = self.current_temperature
 
 def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer, 
              model: deepspeed.DeepSpeedEngine, optimizer: AdamW, 
