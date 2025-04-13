@@ -11,7 +11,7 @@ from transformers import (
 from arguments import get_args
 from utils import print_args, initialize, load_parallel, get_tokenizer
 
-from minillm.minillm import train, Reward
+from .minillm import train, Reward
 
 from peft import PeftModel
 
