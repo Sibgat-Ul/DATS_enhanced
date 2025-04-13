@@ -132,7 +132,7 @@ def get_model(args, device: int) -> PreTrainedModel:
     config = AutoConfig.from_pretrained(args.model_path)
     
     st_time = time.time()
-    dtype = args.dtype
+    dtype = eval(args.dtype)
     if args.model_parallel:
         config.is_model_parallel = True
         with init_empty_weights():
