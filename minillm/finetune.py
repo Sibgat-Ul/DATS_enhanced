@@ -218,7 +218,7 @@ class DynamicTemperatureScheduler:
         self.current_temperature = self.initial_temperature
         self.min_temperature = args.min_temperature
         self.max_temperature = args.max_temperature
-        self.max_epochs = args.training_epochs
+        self.max_epochs = args.epochs
         self.has_temp = True
         self.adjust_temp = True
         self.curve_shape = 1
@@ -252,8 +252,8 @@ class DynamicTemperatureScheduler:
         momentum = 0.9
         self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
 
-def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer, 
-             model: deepspeed.DeepSpeedEngine, optimizer: AdamW, 
+def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
+             model: deepspeed.DeepSpeedEngine, optimizer: AdamW,
              lr_scheduler, dataset, device: int, teacher_model: Optional[PreTrainedModel] = None):
     print_rank("Start Fine-tuning")
 
@@ -282,7 +282,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
 
     step, global_step = 1, 1
     total_loss, total_distil_loss, total_time = 0.0, 0.0, 0.0
-    
+
     # evaluate(args, tokenizer, model, dataset["dev"], "dev", 0, device)
 
     for epoch in range(args.epochs):
@@ -308,7 +308,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                 lm_loss = (lm_losses * loss_mask).sum(-1) / loss_mask.sum(-1)
             else:
                 lm_loss = loss_func(logits.float().view(-1, logits.shape[-1]), no_model_batch["label"].view(-1))
-            
+
             if teacher_model is not None:
 
                 with torch.no_grad():
@@ -325,7 +325,6 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                             teacher_lm_loss = loss_func(teacher_logits.float().view(-1, teacher_logits.shape[-1]), no_model_batch["label"].view(-1))
 
                         ld = teacher_lm_loss - lm_loss
-                        print(ld)
 
                         dts.update_temperature(epoch+1, ld)
                         curr_temp = dts.current_temperature
@@ -337,10 +336,10 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
 
             else:
                 loss = lm_loss
-                
+
             model.backward(loss)
             model.step()
-            
+
             dist.all_reduce(loss, dist.ReduceOp.SUM, group=dp_group)
             global_loss = loss.item() / dp_world_size
 
@@ -349,7 +348,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                 dist.all_reduce(distil_loss, dist.ReduceOp.SUM, group=dp_group)
                 global_distil_loss = distil_loss.item() / dp_world_size
                 total_distil_loss += global_distil_loss
-    
+
             torch.cuda.synchronize()
             elapsed_time = time.time() - st_time
 
@@ -419,7 +418,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                 print_rank("*" * 100)
                 save_rank(log_str, os.path.join(args.save, "log.txt"))
                 total_loss, total_distil_loss, total_time = 0.0, 0.0, 0.0
-            
+
             # Checkpointing
             if args.save and args.save_interval and global_step % args.save_interval == 0 and step % args.gradient_accumulation_steps == 0:
                 save_dir_path = os.path.join(args.save, str(global_step))
@@ -445,16 +444,16 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
             # Evaluation
             if args.eval_interval and global_step % args.eval_interval == 0 and step % args.gradient_accumulation_steps == 0:
                 evaluate(args, tokenizer, model, dataset["dev"], "dev", epoch, device)
-                    
+
                 model.train()
-                
+
             step += 1
             if step % args.gradient_accumulation_steps == 0:
                 global_step += 1
-            
+
             if global_step > args.total_iters:
                 break
-            
+
     return model
 
 
