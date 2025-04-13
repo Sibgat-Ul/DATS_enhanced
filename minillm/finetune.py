@@ -479,7 +479,7 @@ def evaluate(args, tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast, mod
         do_sample=args.do_sample,
         top_p=args.top_p,
         top_k=args.top_k,
-        temperature=args.temperature,
+        temperature=1.0,
         repetition_penalty=args.repetition_penalty,
         max_length=args.max_length,
         min_length=None,
