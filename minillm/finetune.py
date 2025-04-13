@@ -325,6 +325,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                             teacher_lm_loss = loss_func(teacher_logits.float().view(-1, teacher_logits.shape[-1]), no_model_batch["label"].view(-1))
 
                         ld = teacher_lm_loss - lm_loss
+                        print(ld)
 
                         dts.update_temperature(epoch+1, ld)
                         curr_temp = dts.current_temperature
