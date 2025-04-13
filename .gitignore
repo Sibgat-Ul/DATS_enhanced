@@ -22,3 +22,7 @@ __pycache__
 mdistiller.egg-info
 logs/tiny-transformer/
 wandb
+/minillm/data
+/minillm/results
+/minillm/checkpoints
+/minillm/processed_data
