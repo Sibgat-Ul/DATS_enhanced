@@ -318,9 +318,13 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
 
                     if args.use_scheduler:
                         if args.model_parallel:
-                            ld = mpu.parallel_cross_entropy(logits.float(), teacher_logits.float())
+                            teacher_lm_losses = loss_func(teacher_logits.float(), no_model_batch["label"].view(-1))
+                            teacher_loss_mask = no_model_batch["loss_mask"].view(-1)
+                            teacher_lm_loss = (teacher_lm_losses * teacher_loss_mask).sum(-1) / teacher_loss_mask.sum(-1)
                         else:
-                            ld = torch.nn.functional.cross_entropy(logits.float(), teacher_logits.float())
+                            teacher_lm_loss = loss_func(teacher_logits.float().view(-1, teacher_logits.shape[-1]), no_model_batch["label"].view(-1))
+
+                        ld = teacher_lm_loss - lm_loss
 
                         dts.update_temperature(epoch+1, ld)
                         curr_temp = dts.current_temperature
