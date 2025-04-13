@@ -260,9 +260,9 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
     if args.use_scheduler:
         dts = DynamicTemperatureScheduler(args)
         print("#====DTS: On====#")
-        print("Init temp", args.init_temperature)
-        print("min temp", args.min_temperature)
-        print("Max temp: ", args.max_temperature)
+        print("Init temp", dts.initial_temperature)
+        print("min temp", dts.min_temperature)
+        print("Max temp: ", dts.max_temperature)
         print("#===============#")
 
     if args.model_parallel:
@@ -283,7 +283,8 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
     step, global_step = 1, 1
     total_loss, total_distil_loss, total_time = 0.0, 0.0, 0.0
     
-    evaluate(args, tokenizer, model, dataset["dev"], "dev", 0, device)
+    # evaluate(args, tokenizer, model, dataset["dev"], "dev", 0, device)
+
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
 
