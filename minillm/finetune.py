@@ -352,7 +352,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
             total_time += elapsed_time
 
             # Logging
-            def get_log(log_loss, log_distil_loss, log_time, curr_temp):
+            def get_log(log_loss, log_distil_loss, log_time, curr_temp=None):
                 if args.use_scheduler:
                     return "train | epoch {:3d} | Iter: {:6d}/{:6d} | global iter: {:6d}/{:6d} | loss: {:.4f} | temp: {:.3f} | ds_loss: {:.4f} | lr: {:.4e} | scale: {:10.4f} | micro time: {:.3f} | step time: {:.3f}".format(
                         epoch,
@@ -405,8 +405,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                     log_str = get_log(
                         total_loss / (args.log_interval * args.gradient_accumulation_steps),
                         total_distil_loss / (args.log_interval * args.gradient_accumulation_steps),
-                        total_time / (args.log_interval),
-                        dts.current_temperature
+                        total_time / (args.log_interval)
                     )
 
                 print_rank("*" * 100)
