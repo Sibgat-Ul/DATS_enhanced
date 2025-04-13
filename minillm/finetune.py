@@ -351,7 +351,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
             total_time += elapsed_time
 
             # Logging
-            def get_log(log_loss, log_distil_loss, log_time):
+            def get_log(log_loss, log_distil_loss, log_time, curr_temp):
                 if args.use_scheduler:
                     return "train | epoch {:3d} | Iter: {:6d}/{:6d} | global iter: {:6d}/{:6d} | loss: {:.4f} | temp: {:.3f} | ds_loss: {:.4f} | lr: {:.4e} | scale: {:10.4f} | micro time: {:.3f} | step time: {:.3f}".format(
                         epoch,
@@ -360,7 +360,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                         global_step,
                         args.total_iters,
                         log_loss,
-                        args.temperature,
+                        curr_temp,
                         log_distil_loss,
                         lr_scheduler.get_last_lr()[0],
                         optimizer.cur_scale if hasattr(optimizer, "cur_scale") else 0,
@@ -386,13 +386,28 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                 mid_log_step = args.gradient_accumulation_steps // args.mid_log_num
                 mid_log_step = 1 if mid_log_step == 0 else mid_log_step
                 if step % mid_log_step == 0:
-                    print_rank(get_log(global_loss, global_distil_loss, 0))
+                    if args.use_scheduler:
+                        print_rank(get_log(global_loss, global_distil_loss, 0, dts.current_temperature))
+                    else:
+                        print_rank(get_log(global_loss, global_distil_loss, 0))
 
             if global_step % args.log_interval == 0 and step % args.gradient_accumulation_steps == 0:
-                log_str = get_log(
-                    total_loss / (args.log_interval * args.gradient_accumulation_steps),
-                    total_distil_loss / (args.log_interval * args.gradient_accumulation_steps),
-                    total_time / (args.log_interval))
+                if args.use_scheduler:
+                    log_str = get_log(
+                        total_loss / (args.log_interval * args.gradient_accumulation_steps),
+                        total_distil_loss / (args.log_interval * args.gradient_accumulation_steps),
+                        total_time / (args.log_interval),
+                        dts.current_temperature
+                    )
+
+                else:
+                    log_str = get_log(
+                        total_loss / (args.log_interval * args.gradient_accumulation_steps),
+                        total_distil_loss / (args.log_interval * args.gradient_accumulation_steps),
+                        total_time / (args.log_interval),
+                        dts.current_temperature
+                    )
+
                 print_rank("*" * 100)
                 print_rank(log_str)
                 print_rank(args.save)
