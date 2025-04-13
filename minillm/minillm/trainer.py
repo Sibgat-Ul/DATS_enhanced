@@ -38,6 +38,46 @@ from .losses import Loss
 from utils import print_rank, save_rank, get_rank, all_gather, save_parallel
 from rouge_metric import compute_metrics
 
+class DynamicTemperatureScheduler:
+    def __init__(self, args):
+        self.initial_temperature = args.init_temperature
+        self.current_temperature = self.initial_temperature
+        self.min_temperature = args.min_temperature
+        self.max_temperature = args.max_temperature
+        self.max_epochs = args.training_epochs
+        self.has_temp = True
+        self.adjust_temp = True
+        self.curve_shape = 1
+        args.temperature = self.current_temperature
+        self.args = args
+
+    def update_temperature(self, current_epoch, loss_divergence):
+        progress = torch.tensor(current_epoch / self.max_epochs)
+        cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape * torch.pi * progress))
+
+        if self.adjust_temp is True:
+            adaptive_scale = loss_divergence / (loss_divergence + 1)
+
+            if adaptive_scale > 1:
+                if adaptive_scale > 2:
+                    adaptive_scale = 1.35
+                target_temperature = self.initial_temperature * cosine_factor * (adaptive_scale)
+            else:
+                target_temperature = self.initial_temperature * cosine_factor
+        else:
+            target_temperature = self.initial_temperature * cosine_factor
+
+        target_temperature = torch.clamp(
+            target_temperature,
+            self.min_temperature,
+            self.max_temperature
+        )
+
+        # target_temperature = round(target_temperature.item(), 2)
+
+        momentum = 0.9
+        self.current_temperature = momentum * self.current_temperature + (1 - momentum) * target_temperature
+
 class PPOTrainer():
     """
     RL model trainer with an `accelerate` based backend
@@ -93,6 +133,10 @@ class PPOTrainer():
             eos_token_id=self.tokenizer.eos_token_id,
             pad_token_id=self.tokenizer.pad_token_id,
         )
+
+        if args.scheduler:
+            self.dts = DynamicTemperatureScheduler(self.args)
+            self.current_temperature = self.dts.current_temperature
 
     def set_teacher_model(self, model):
         self.teacher_model = model
@@ -205,7 +249,11 @@ class PPOTrainer():
         )
 
         logits = outputs.logits
-        logits = logits / self.args.temperature
+
+        if self.args.scheduler:
+            logits = logits / self.current_temperature
+        else:
+            logits = logits / self.args.temperature
 
         start = query_ids.size(1) - 1
         end = query_ids.size(1) + response_ids.size(1) - 1

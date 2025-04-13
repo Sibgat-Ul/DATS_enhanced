@@ -241,8 +241,9 @@ class Loss():
                                                         no_model_batch["label"].view(-1))
                     teacher_lm_loss = teacher_ce_losses.masked_select(loss_mask.view(-1).bool()).mean()
 
-                ce_diff = lm_loss - teacher_lm_loss
-                self.ld = ce_diff
+                with torch.no_grad():
+                    ce_diff = lm_loss - teacher_lm_loss
+                    self.ld = ce_diff
 
             loss = (1 - self.args.kd_ratio) * lm_loss + self.args.kd_ratio * distil_loss
         else:

@@ -38,9 +38,7 @@ from utils import (
     get_tokenizer, get_model)
 from rouge_metric import compute_metrics
 
-
 torch.set_num_threads(4)
-
 
 def get_teacher_model(args, device: int):
     config = AutoConfig.from_pretrained(args.teacher_model_path)
