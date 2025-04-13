@@ -17,7 +17,6 @@ class Loss():
         self.args = args
         self.trainer = trainer
         self.ld = 0.0
-        self.dts = dts
 
     def _get_cumsum_rewards(self, rewards):          
         full_rewards = torch.zeros_like(rewards[:, 0])
@@ -197,7 +196,7 @@ class Loss():
         
         return loss, stats
 
-    def pt_loss(self, batch: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]], logits: torch.Tensor):
+    def pt_loss(self, batch: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]], logits: torch.Tensor, training_epoch=None, dts=None):
         stats = {}
         model_batch, no_model_batch = batch
         loss_mask = (no_model_batch["label"] != -100).int()
@@ -218,7 +217,7 @@ class Loss():
                 teacher_outputs = self.trainer.teacher_model(**model_batch, return_dict=True, use_cache=False)
                 teacher_logits = teacher_outputs.logits
 
-            if self.args.dts:
+            if self.args.use_scheduler:
                 with torch.no_grad():
                     if self.args.model_parallel:
                         t_ce_losses = mpu.parallel_cross_entropy(teacher_logits.contiguous().float(), no_model_batch["label"].view(-1))
@@ -229,6 +228,10 @@ class Loss():
                         t_lm_loss = t_ce_losses.masked_select(loss_mask.view(-1).bool()).mean()
 
                     self.ld = t_lm_loss - lm_loss
+                    dts.update_temperature(training_epoch, self.ld)
+
+                    logits = logits/dts.current_temperature
+                    teacher_logits = teacher_logits/dts.current_temperature
 
 
             if self.args.model_parallel:
@@ -251,5 +254,8 @@ class Loss():
         stats["pt_loss"] = loss.item()
         stats["lm_loss"] = lm_loss.item()
         stats["ds_loss"] = distil_loss.item()
+
+        if dts is not None:
+            stats["temp"] = dts.current_temperature
 
         return loss, stats

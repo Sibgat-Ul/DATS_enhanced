@@ -135,7 +135,6 @@ class PPOTrainer():
 
         if args.scheduler:
             self.dts = DynamicTemperatureScheduler(self.args)
-            self.current_temperature = self.dts.current_temperature
             self.losses = Loss(args, self, self.dts)
         else:
             self.losses = Loss(args, self)
@@ -252,10 +251,7 @@ class PPOTrainer():
 
         logits = outputs.logits
 
-        if self.args.scheduler:
-            logits = logits / self.current_temperature
-        else:
-            logits = logits / self.args.temperature
+        logits = logits / self.args.temperature
 
         start = query_ids.size(1) - 1
         end = query_ids.size(1) + response_ids.size(1) - 1
@@ -328,7 +324,18 @@ class PPOTrainer():
                     
                     # compute lm-related loss on pre-training data (optinal)
                     if self.lm_pipeline is not None:
-                        pt_loss, pt_loss_stats = self.losses.pt_loss(lm_batch, lm_logits)
+                        if self.args.use_scheduler:
+                            pt_loss, pt_loss_stats = self.losses.pt_loss(
+                                lm_batch,
+                                lm_logits,
+                                training_epoch + 1,
+                                self.dts
+                            )
+                        else:
+                            pt_loss, pt_loss_stats = self.losses.pt_loss(
+                                lm_batch,
+                                lm_logits
+                            )
                         stats.update(pt_loss_stats)
                     else:
                         pt_loss = 0
@@ -371,23 +378,44 @@ class PPOTrainer():
 
                     # Logging
                     def get_log(log_stats, one_step_time):
-                        keys = ["tot_loss", "rl_loss", "pt_loss", "pg_loss", "reg_loss", "reward", "rev_kl", "stu_lens", "mixed_lens"]
-                        prefix = "train | data_epochs {:2d}/{:2d} | inner iter: {:3d}/{:3d} | ppo epoch: {:2d}/{:2d} | global iter: {:6d}/{:6d}".format(
-                            self.sampler.epochs,
-                            self.args.epochs,
-                            it,
-                            len(self.train_dataloader),
-                            ppo_epoch,
-                            self.n_updates_per_batch,
-                            self.global_iter_count,
-                            self.total_steps
-                        )
-                        suffix = "| lr: {:.4e} | scale: {:6.2f} | time: {:.3f} | step time: {:.3f}".format(
-                            self.scheduler.get_last_lr()[0],
-                            self.opt.cur_scale if hasattr(self.opt, "cur_scale") else 0,
-                            elapsed_time,
-                            one_step_time
-                        )
+                        if self.args.use_scheduler:
+                            keys = ["tot_loss", "rl_loss", "pt_loss", "temp", "pg_loss", "reg_loss", "reward", "rev_kl",
+                                    "stu_lens", "mixed_lens"]
+                            prefix = "train | data_epochs {:2d}/{:2d} | inner iter: {:3d}/{:3d} | ppo epoch: {:2d}/{:2d} | global iter: {:6d}/{:6d}".format(
+                                self.sampler.epochs,
+                                self.args.epochs,
+                                it,
+                                len(self.train_dataloader),
+                                ppo_epoch,
+                                self.n_updates_per_batch,
+                                self.global_iter_count,
+                                self.total_steps
+                            )
+                            suffix = "| lr: {:.4e} | scale: {:6.2f} | time: {:.3f} | step time: {:.3f}".format(
+                                self.scheduler.get_last_lr()[0],
+                                self.opt.cur_scale if hasattr(self.opt, "cur_scale") else 0,
+                                elapsed_time,
+                                one_step_time
+                            )
+                        else:
+                            keys = ["tot_loss", "rl_loss", "pt_loss", "pg_loss", "reg_loss", "reward", "rev_kl",
+                                    "stu_lens", "mixed_lens"]
+                            prefix = "train | data_epochs {:2d}/{:2d} | inner iter: {:3d}/{:3d} | ppo epoch: {:2d}/{:2d} | global iter: {:6d}/{:6d}".format(
+                                self.sampler.epochs,
+                                self.args.epochs,
+                                it,
+                                len(self.train_dataloader),
+                                ppo_epoch,
+                                self.n_updates_per_batch,
+                                self.global_iter_count,
+                                self.total_steps
+                            )
+                            suffix = "| lr: {:.4e} | scale: {:6.2f} | time: {:.3f} | step time: {:.3f}".format(
+                                self.scheduler.get_last_lr()[0],
+                                self.opt.cur_scale if hasattr(self.opt, "cur_scale") else 0,
+                                elapsed_time,
+                                one_step_time
+                            )
                         for key in keys:
                             prefix += "| {}: {:.4f} ".format(key, log_stats.get(key, 0))
                         return prefix + suffix
