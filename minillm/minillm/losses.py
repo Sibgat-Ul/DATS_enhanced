@@ -13,10 +13,11 @@ from utils import all_gather, print_rank
 
 
 class Loss():
-    def __init__(self, args, trainer):
+    def __init__(self, args, trainer, dts=None):
         self.args = args
         self.trainer = trainer
         self.ld = 0.0
+        self.dts = dts
 
     def _get_cumsum_rewards(self, rewards):          
         full_rewards = torch.zeros_like(rewards[:, 0])
@@ -211,12 +212,24 @@ class Loss():
             lm_loss = ce_losses.masked_select(loss_mask.view(-1).bool()).mean()
 
         distil_loss = 0
-        ce_diff = torch.tensor(0.0, device=logits.device)
 
         if self.trainer.teacher_model is not None and self.args.kd_ratio is not None:
             with torch.no_grad():
                 teacher_outputs = self.trainer.teacher_model(**model_batch, return_dict=True, use_cache=False)
                 teacher_logits = teacher_outputs.logits
+
+            if self.args.dts:
+                with torch.no_grad():
+                    if self.args.model_parallel:
+                        t_ce_losses = mpu.parallel_cross_entropy(teacher_logits.contiguous().float(), no_model_batch["label"].view(-1))
+                        t_lm_loss = (t_ce_losses * loss_mask.view(-1)).sum(-1) / loss_mask.view(-1).sum(-1)
+                    else:
+                        loss_fn = nn.CrossEntropyLoss(ignore_index=-100, reduction='none')
+                        t_ce_losses = loss_fn(teacher_logits.view(-1, teacher_logits.size(-1)), no_model_batch["label"].view(-1))
+                        t_lm_loss = t_ce_losses.masked_select(loss_mask.view(-1).bool()).mean()
+
+                    self.ld = t_lm_loss - lm_loss
+
 
             if self.args.model_parallel:
                 distil_losses = mpu.parallel_soft_cross_entropy_loss(logits.float(), teacher_logits.float())
@@ -230,22 +243,8 @@ class Loss():
                 x = torch.sum(prod_probs, dim=-1).view(-1)
                 distil_loss = -torch.sum(x * loss_mask.view(-1), dim=0) / torch.sum(loss_mask.view(-1), dim=0)
 
-            if getattr(self.args, 'dts', False):
-                if self.args.model_parallel:
-                    teacher_lm_losses = mpu.parallel_cross_entropy(teacher_logits.contiguous().float(),
-                                                                   no_model_batch["label"]).view(-1)
-                    teacher_lm_loss = (teacher_lm_losses * loss_mask.view(-1)).sum(-1) / loss_mask.view(-1).sum(-1)
-                else:
-                    loss_fn_teacher = nn.CrossEntropyLoss(ignore_index=-100, reduction='none')
-                    teacher_ce_losses = loss_fn_teacher(teacher_logits.view(-1, teacher_logits.size(-1)),
-                                                        no_model_batch["label"].view(-1))
-                    teacher_lm_loss = teacher_ce_losses.masked_select(loss_mask.view(-1).bool()).mean()
-
-                with torch.no_grad():
-                    ce_diff = lm_loss - teacher_lm_loss
-                    self.ld = ce_diff
-
             loss = (1 - self.args.kd_ratio) * lm_loss + self.args.kd_ratio * distil_loss
+
         else:
             loss = lm_loss
 

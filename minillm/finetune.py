@@ -321,7 +321,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                         else:
                             ld = torch.nn.functional.cross_entropy(logits.float(), teacher_logits.float())
 
-                        dts.update_temperature(epoch, ld)
+                        dts.update_temperature(epoch+1, ld)
                         curr_temp = dts.current_temperature
                         logits = logits/curr_temp
                         teacher_logits = teacher_logits/curr_temp

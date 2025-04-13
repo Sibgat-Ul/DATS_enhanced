@@ -122,8 +122,7 @@ class PPOTrainer():
         self.tokenizer = tokenizer
         self.store = PPORolloutStorage(self.tokenizer.pad_token_id, self.args.seed_ppo + self.dp_rank)
         self.store.clear_history()
-        
-        self.losses = Loss(args, self)
+
         self.generate_kwargs = dict(
             do_sample=args.do_sample,
             top_p=args.top_p,
@@ -137,6 +136,9 @@ class PPOTrainer():
         if args.scheduler:
             self.dts = DynamicTemperatureScheduler(self.args)
             self.current_temperature = self.dts.current_temperature
+            self.losses = Loss(args, self, self.dts)
+        else:
+            self.losses = Loss(args, self)
 
     def set_teacher_model(self, model):
         self.teacher_model = model
