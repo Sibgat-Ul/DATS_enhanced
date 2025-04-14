@@ -133,7 +133,7 @@ class PPOTrainer():
             pad_token_id=self.tokenizer.pad_token_id,
         )
 
-        if args.scheduler:
+        if args.use_scheduler:
             self.dts = DynamicTemperatureScheduler(self.args)
             self.losses = Loss(args, self, self.dts)
         else:
