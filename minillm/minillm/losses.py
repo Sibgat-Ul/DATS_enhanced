@@ -16,7 +16,8 @@ class Loss():
     def __init__(self, args, trainer, dts=None):
         self.args = args
         self.trainer = trainer
-        self.ld = 0.0
+        self.ld = 0.0,
+        self.dts = dts
 
     def _get_cumsum_rewards(self, rewards):          
         full_rewards = torch.zeros_like(rewards[:, 0])
@@ -142,7 +143,7 @@ class Loss():
         start = query_tensors.size(1) - 1 # "-1" for the first generated token AS TARGET
         end = query_tensors.size(1) + response_tensors.size(1) - 1 # "remove the last token that does not have target"
 
-        logits = logits / self.args.temperature
+        logits = logits / 1.0
         logits = logits[:, start:end]
         if inf_mask is not None:
             logits = logits.masked_fill(inf_mask, -float("inf"))
