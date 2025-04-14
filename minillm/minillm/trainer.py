@@ -55,7 +55,7 @@ class DynamicTemperatureScheduler:
         cosine_factor = 0.5 * (1 + torch.cos(self.curve_shape * torch.pi * progress))
 
         if self.adjust_temp is True:
-            adaptive_scale = loss_divergence / (loss_divergence + 1)
+            adaptive_scale = loss_divergence / (loss_divergence + 1 + 0.00001)
 
             if adaptive_scale > 1:
                 if adaptive_scale > 2:

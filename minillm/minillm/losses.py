@@ -229,6 +229,7 @@ class Loss():
                         t_lm_loss = t_ce_losses.masked_select(loss_mask.view(-1).bool()).mean()
 
                     self.ld = t_lm_loss - lm_loss
+                    print(self.ld)
                     dts.update_temperature(training_epoch, self.ld)
 
                     logits = logits/dts.current_temperature
@@ -255,8 +256,5 @@ class Loss():
         stats["pt_loss"] = loss.item()
         stats["lm_loss"] = lm_loss.item()
         stats["ds_loss"] = distil_loss.item()
-
-        if dts is not None:
-            stats["temp"] = dts.current_temperature
 
         return loss, stats
