@@ -16,7 +16,7 @@ class Encoder(object):
         self.args = args
         
     def initializer(self):
-        Encoder.tokenizer = AutoTokenizer.from_pretrained(self.args.model_path, max_length=512, truncation=True)
+        Encoder.tokenizer = AutoTokenizer.from_pretrained(self.args.model_path)
 
     def encode(self, line):
         line = line.replace("<@x(x!>", "\n")
