@@ -328,9 +328,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
 
                         dts.update_temperature(epoch+1, ld)
                         curr_temp = dts.current_temperature
-                        print(logits[0])
                         logits = logits/curr_temp
-                        print(logits[0])
                         teacher_logits = teacher_logits/curr_temp
 
                 distil_loss = get_distil_loss(args, teacher_logits, no_model_batch, logits)
