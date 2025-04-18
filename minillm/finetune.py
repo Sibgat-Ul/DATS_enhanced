@@ -331,7 +331,7 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                         logits = logits/curr_temp
                         teacher_logits = teacher_logits/curr_temp
 
-                distil_loss = get_distil_loss(args, teacher_logits, no_model_batch, logits)
+                distil_loss = get_distil_loss(args, teacher_logits, no_model_batch, logits) * (dts.current_temperature * dts.current_temperature)
                 loss = (1 - args.kd_ratio) * lm_loss + args.kd_ratio * distil_loss
 
             else:
