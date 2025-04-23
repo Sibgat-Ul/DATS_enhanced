@@ -53,6 +53,7 @@ class LMTrainDataset(Dataset):
 
     def _process_lm(self, i, samp, model_data, no_model_data, gen_data):
         input_ids = samp["input_ids"]
+        print(self.split_id, input_ids.shape)
         source_len = 1
         
         prompt = None
@@ -108,8 +109,6 @@ class LMTrainDataset(Dataset):
             "input_ids": torch.ones(bs, self.max_prompt_length, dtype=torch.long) * self.pad_id,
             "attention_mask": torch.zeros(bs, self.max_prompt_length, dtype=torch.long),
         }
-
-        print(gen_data["input_ids"].shape)
 
         for i, samp in enumerate(samples):
             self._process_lm(i, samp, model_data, no_model_data, gen_data)
