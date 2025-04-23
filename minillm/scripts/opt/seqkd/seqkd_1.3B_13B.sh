@@ -4,7 +4,7 @@ MASTER_ADDR=localhost
 MASTER_PORT=${2-2012}
 NNODES=1
 NODE_RANK=0
-GPUS_PER_NODE=${3-16}
+GPUS_PER_NODE=2
 
 DISTRIBUTED_ARGS="--nproc_per_node 2 \
                   --nnodes $NNODES \
@@ -26,7 +26,7 @@ DATA_DIR="${BASE_PATH}/processed_data/dolly/pseudo/opt-13B-sft/"
 BATCH_SIZE=4
 LR=0.00005
 GRAD_ACC=1
-EVAL_BATCH_SIZE=4
+EVAL_BATCH_SIZE=8
 # length
 MAX_LENGTH=512
 # runtime
