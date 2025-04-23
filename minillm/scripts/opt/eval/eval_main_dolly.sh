@@ -4,7 +4,7 @@ MASTER_ADDR=localhost
 MASTER_PORT=${2-2113}
 NNODES=1
 NODE_RANK=0
-GPUS_PER_NODE=${2}
+GPUS_PER_NODE=2
 
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
                   --nnodes $NNODES \
@@ -16,6 +16,7 @@ DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
 BASE_PATH=${1-"/home/MiniLLM"}
 CKPT_NAME=${4-"opt-1.3B"}
 CKPT="${BASE_PATH}/results/opt/train/${CKPT_NAME}/"
+#MP_SIZE=4
 # data
 DATA_NAMES="dolly"
 DATA_DIR="${BASE_PATH}/data/dolly"

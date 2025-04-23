@@ -4,7 +4,7 @@ MASTER_ADDR=localhost
 MASTER_PORT=${2-2113}
 NNODES=1
 NODE_RANK=0
-GPUS_PER_NODE=${3-1}
+GPUS_PER_NODE=2
 
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
                   --nnodes $NNODES \
@@ -21,7 +21,7 @@ MP_SIZE=4
 DATA_NAMES="vicuna"
 DATA_DIR="${BASE_PATH}/data/vicuna"
 # hp
-EVAL_BATCH_SIZE=16
+EVAL_BATCH_SIZE=8
 # runtime
 SAVE_PATH="${BASE_PATH}/results/opt/eval_main/"
 TYPE="eval_main"
