@@ -57,7 +57,8 @@ class LMTrainDataset(Dataset):
         source_len = 1
         
         prompt = None
-        source_len = np.where(input_ids==self.split_id)[0][0]
+        source_len = np.where(input_ids==self.split_id)
+        print(source_len)
         prompt = input_ids[:source_len] #for uint16 (others)
         input_ids = np.concatenate([input_ids[:source_len], input_ids[source_len+1:]], axis=0)
         input_ids = input_ids[:self.max_length]
