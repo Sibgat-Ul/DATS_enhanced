@@ -4,7 +4,7 @@ MASTER_ADDR=localhost
 MASTER_PORT=${2-2113}
 NNODES=1
 NODE_RANK=0
-GPUS_PER_NODE=${3-1}
+GPUS_PER_NODE=${2}
 
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
                   --nnodes $NNODES \
@@ -16,12 +16,11 @@ DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
 BASE_PATH=${1-"/home/MiniLLM"}
 CKPT_NAME=${4-"opt-1.3B"}
 CKPT="${BASE_PATH}/results/opt/train/${CKPT_NAME}/"
-MP_SIZE=4
 # data
 DATA_NAMES="dolly"
 DATA_DIR="${BASE_PATH}/data/dolly"
 # hp
-EVAL_BATCH_SIZE=16
+EVAL_BATCH_SIZE=8
 # runtime
 SAVE_PATH="${BASE_PATH}/results/opt/eval_main/"
 TYPE="eval_main"

@@ -87,7 +87,7 @@ OPTS+=" --do-sample"
 OPTS+=" --top-k 0"
 OPTS+=" --top-p 1.0"
 OPTS+=" --temperature 1.0"
-
+OPTS+=" --use_scheduler"
 
 export NCCL_DEBUG=""
 export WANDB_DISABLED=True
