@@ -316,22 +316,26 @@ def finetune(args, tokenizer: PreTrainedTokenizerFast | PreTrainedTokenizer,
                     teacher_outputs = teacher_model(**model_batch, use_cache=False)
                     teacher_logits = teacher_outputs.logits
 
+                    if args.model_parallel:
+                        teacher_lm_losses = loss_func(teacher_logits.float(), no_model_batch["label"].view(-1))
+                        teacher_loss_mask = no_model_batch["loss_mask"].view(-1)
+                        teacher_lm_loss = (teacher_lm_losses * teacher_loss_mask).sum(-1) / teacher_loss_mask.sum(-1)
+                    else:
+                        teacher_lm_loss = loss_func(teacher_logits.float().view(-1, teacher_logits.shape[-1]),
+                                                    no_model_batch["label"].view(-1))
+
                     if args.use_scheduler:
-                        if args.model_parallel:
-                            teacher_lm_losses = loss_func(teacher_logits.float(), no_model_batch["label"].view(-1))
-                            teacher_loss_mask = no_model_batch["loss_mask"].view(-1)
-                            teacher_lm_loss = (teacher_lm_losses * teacher_loss_mask).sum(-1) / teacher_loss_mask.sum(-1)
-                        else:
-                            teacher_lm_loss = loss_func(teacher_logits.float().view(-1, teacher_logits.shape[-1]), no_model_batch["label"].view(-1))
-
                         ld = teacher_lm_loss - lm_loss
-
                         dts.update_temperature(epoch+1, ld)
                         curr_temp = dts.current_temperature
                         logits = logits/curr_temp
                         teacher_logits = teacher_logits/curr_temp
 
-                distil_loss = get_distil_loss(args, teacher_logits, no_model_batch, logits) * (dts.current_temperature * dts.current_temperature)
+                if args.use_scheduler:
+                    distil_loss = get_distil_loss(args, teacher_logits, no_model_batch, logits) * (dts.current_temperature * dts.current_temperature)
+                else:
+                    distil_loss = get_distil_loss(args, teacher_logits, no_model_batch, logits)
+
                 loss = (1 - args.kd_ratio) * lm_loss + args.kd_ratio * distil_loss
 
             else:
