@@ -109,6 +109,8 @@ class LMTrainDataset(Dataset):
             "attention_mask": torch.zeros(bs, self.max_prompt_length, dtype=torch.long),
         }
 
+        print(gen_data["input_ids"].shape)
+
         for i, samp in enumerate(samples):
             self._process_lm(i, samp, model_data, no_model_data, gen_data)
         
