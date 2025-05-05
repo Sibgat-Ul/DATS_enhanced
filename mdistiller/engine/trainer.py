@@ -115,12 +115,14 @@ class BaseTrainer(object):
 
     def train_epoch(self, epoch):
         lr = adjust_learning_rate(epoch, self.cfg, self.optimizer)
+
         train_meters = {
             "training_time": AverageMeter(),
             "losses": AverageMeter(),
             "top1": AverageMeter(),
             "top5": AverageMeter(),
-            "temp": self.distiller.module.temperature,
+            # "temp": self.distiller.module.temperature,
+            "temp": AverageMeter(),
         }
 
         num_iter = len(self.train_loader)
@@ -299,7 +301,8 @@ class DynamicTemperatureScheduler(BaseTrainer):
             "losses": AverageMeter(),
             "top1": AverageMeter(),
             "top5": AverageMeter(),
-            "temp": self.current_temperature,
+            # "temp": self.current_temperature,
+            "temp": AverageMeter(),
         }
 
         num_iter = len(self.train_loader)
@@ -323,7 +326,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
                 "train_loss": train_meters["losses"].avg,
                 "test_acc": test_acc,
                 "test_loss": test_loss,
-                "temp": self.distiller.module.temperature,
+                "temp": train_meters["temp"].avg,
                 "lr": lr
             }
         )
@@ -394,6 +397,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
         train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
         train_meters["top1"].update(acc1[0], batch_size)
         train_meters["top5"].update(acc5[0], batch_size)
+        train_meters["temp"].update(self.distiller.module.temperature)
 
         # print info
         msg = "Epoch: {}/{} | TSL: {:.2f}| Temp: {:.2f}| Time: {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
