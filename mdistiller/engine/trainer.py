@@ -246,13 +246,13 @@ class DynamicTemperatureScheduler(BaseTrainer):
         self.curve_shape = cfg.SOLVER.CURVE_SHAPE
 
         self.extraKwargs = {
-            "dkd": {
+            "DKD": {
                 "alpha": self.cfg.DKD.ALPHA,
                 "beta": self.cfg.DKD.BETA,
                 "temperature": self.get_temperature(),
                 "logit_stand": self.cfg.EXPERIMENT.LOGIT_STAND,
             },
-            "kd": {
+            "KD": {
                 "temperature": self.get_temperature(),
                 "logit_stand": cfg.EXPERIMENT.LOGIT_STAND,
             }
