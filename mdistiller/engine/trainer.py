@@ -389,7 +389,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": min(epoch / self.warmup, 1.0) * dkd_loss(
+            "loss_kd": min(epoch / cfg.DKD.WARMUP, 1.0) * dkd_loss(
                 logits_student,
                 logits_teacher,
                 target,
