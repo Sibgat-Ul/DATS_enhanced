@@ -77,7 +77,7 @@ class DKD(Distiller):
             logits_teacher, _ = self.teacher(image)
 
         student_loss = F.cross_entropy(logits_student, target)
-        loss_ce = self.ce_loss_weight * student_loss.item()
+        loss_ce = self.ce_loss_weight * student_loss
 
         if self.cfg.SOLVER.TRAINER == "scheduler":
             teacher_loss = F.cross_entropy(logits_teacher, target)
