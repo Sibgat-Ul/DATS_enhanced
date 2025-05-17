@@ -402,7 +402,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
             loss_divergence=loss_divergence
         )
 
-        print(self.extraKwargs)
+        print(self.extraKwargs, "HERE")
 
         losses_dict = {
             "loss_ce": loss_ce,
