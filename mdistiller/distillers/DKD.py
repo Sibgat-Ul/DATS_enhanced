@@ -72,33 +72,35 @@ class DKD(Distiller):
 
     def forward_train(self, image, target, **kwargs):
         logits_student, _ = self.student(image)
+
         with torch.no_grad():
             logits_teacher, _ = self.teacher(image)
 
         student_loss = F.cross_entropy(logits_student, target)
-
-        # losses
-        loss_ce = self.ce_loss_weight * student_loss
-
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-            self.logit_stand,
-        )
-
-        losses_dict = {
-            "loss_ce": loss_ce,
-            "loss_kd": loss_dkd,
-        }
+        loss_ce = self.ce_loss_weight * student_loss.item()
 
         if self.cfg.SOLVER.TRAINER == "scheduler":
             teacher_loss = F.cross_entropy(logits_teacher, target)
+
             with torch.no_grad():
                 loss_divergence = teacher_loss.item() - student_loss.item()
-            return logits_student, losses_dict, loss_divergence
+            return logits_student, logits_teacher, loss_divergence, loss_ce, dkd_loss
+
+        else:
+            # losses
+            loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+                logits_student,
+                logits_teacher,
+                target,
+                self.alpha,
+                self.beta,
+                self.temperature,
+                self.logit_stand,
+            )
+
+            losses_dict = {
+                "loss_ce": loss_ce,
+                "loss_kd": loss_dkd,
+            }
 
         return logits_student, losses_dict

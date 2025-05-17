@@ -2,6 +2,7 @@ import os
 import time
 from tqdm import tqdm
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from collections import OrderedDict
@@ -379,8 +380,25 @@ class DynamicTemperatureScheduler(BaseTrainer):
         target = target.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
 
-        # forward
-        preds, losses_dict, loss_divergence = self.distiller(image=image, target=target, epoch=epoch)
+        logits_student, logits_teacher, loss_divergence, loss_ce, dkd_loss = self.distiller(image=image, target=target, epoch=epoch)
+
+        self.update_temperature(
+            current_epoch=epoch,
+            loss_divergence=loss_divergence
+        )
+
+        losses_dict = {
+            "loss_ce": loss_ce,
+            "loss_kd": min(epoch / self.warmup, 1.0) * dkd_loss(
+                logits_student,
+                logits_teacher,
+                target,
+                cfg.DKD.ALPHA,
+                cfg.DKD.BETA,
+                self.current_temperature,
+                cfg.EXPERIMENT.LOGIT_STAND
+            )
+        }
 
         # backward
         loss = sum([l.mean() for l in losses_dict.values()])
@@ -409,11 +427,6 @@ class DynamicTemperatureScheduler(BaseTrainer):
             train_meters["losses"].avg,
             train_meters["top1"].avg,
             train_meters["top5"].avg
-        )
-
-        self.update_temperature(
-            current_epoch=epoch,
-            loss_divergence=loss_divergence
         )
 
         return msg
