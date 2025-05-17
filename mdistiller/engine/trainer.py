@@ -395,16 +395,18 @@ class DynamicTemperatureScheduler(BaseTrainer):
         target = target.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
 
-        logits_student, logits_teacher, loss_divergence, loss_ce, dkd_loss = self.distiller(image=image, target=target, epoch=epoch)
+        logits_student, logits_teacher, loss_divergence, loss_ce, kd_loss = self.distiller(image=image, target=target, epoch=epoch)
 
         self.update_temperature(
             current_epoch=epoch,
             loss_divergence=loss_divergence
         )
 
+        print(self.extraKwargs)
+
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": min(epoch / self.cfg.DKD.WARMUP, 1.0) * dkd_loss(
+            "loss_kd": min(epoch / self.cfg.DKD.WARMUP, 1.0) * kd_loss(
                 logits_student,
                 logits_teacher,
                 target,
