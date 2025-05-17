@@ -41,21 +41,25 @@ class KD(Distiller):
             logits_teacher = self.teacher(image)
         # losses
         student_loss = F.cross_entropy(logits_student, target)
-        teacher_loss = F.cross_entropy(logits_teacher, target)
-
         loss_ce = self.ce_loss_weight * student_loss
-        loss_kd = self.kd_loss_weight * kd_loss(
-            logits_student, logits_teacher, self.temperature, self.logit_stand
-        )
-
-        losses_dict = {
-            "loss_ce": loss_ce,
-            "loss_kd": loss_kd,
-        }
 
         if self.cfg.SOLVER.TRAINER == "scheduler":
-            loss_divergence = teacher_loss.item() - student_loss.item()
-            return logits_student, losses_dict, loss_divergence
+            teacher_loss = F.cross_entropy(logits_teacher, target)
+
+            with torch.no_grad():
+                loss_divergence = teacher_loss.item() - student_loss.item()
+            return logits_student, logits_teacher, loss_divergence, loss_ce, kd_loss
+
+        else:
+            # losses
+            loss_kd = self.kd_loss_weight * kd_loss(
+                logits_student, logits_teacher, self.temperature, self.logit_stand
+            )
+
+            losses_dict = {
+                "loss_ce": loss_ce,
+                "loss_kd": loss_kd,
+            }
 
         return logits_student, losses_dict
 

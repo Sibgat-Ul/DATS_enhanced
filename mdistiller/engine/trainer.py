@@ -245,6 +245,21 @@ class DynamicTemperatureScheduler(BaseTrainer):
         self.adjust_temp = cfg.SOLVER.ADJUST_TEMPERATURE
         self.curve_shape = cfg.SOLVER.CURVE_SHAPE
 
+        self.extraKwargs = {
+            "dkd": {
+                "alpha": self.cfg.DKD.ALPHA,
+                "beta": self.cfg.DKD.BETA,
+                "temperature": self.get_temperature(),
+                "logit_stand": self.cfg.EXPERIMENT.LOGIT_STAND,
+            },
+            "kd": {
+                "temperature": self.get_temperature(),
+                "logit_stand": cfg.EXPERIMENT.LOGIT_STAND,
+            }
+        }
+
+        self.extraKwargs = self.extraKwargs[self.cfg.DISTILLER.TYPE]
+
         try:
             self.distiller.module.temperature = cfg.SOLVER.INIT_TEMPERATURE
             self.has_temp = True
@@ -393,10 +408,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
                 logits_student,
                 logits_teacher,
                 target,
-                self.cfg.DKD.ALPHA,
-                self.cfg.DKD.BETA,
-                self.current_temperature,
-                self.cfg.EXPERIMENT.LOGIT_STAND
+                **self.extraKwargs
             )
         }
 
