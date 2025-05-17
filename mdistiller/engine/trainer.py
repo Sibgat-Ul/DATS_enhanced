@@ -250,12 +250,12 @@ class DynamicTemperatureScheduler(BaseTrainer):
                 "target": None,
                 "alpha": self.cfg.DKD.ALPHA,
                 "beta": self.cfg.DKD.BETA,
-                "temperature": self.get_temperature(),
+                "temperature": self.current_temperature,
                 "logit_stand": self.cfg.EXPERIMENT.LOGIT_STAND,
             },
 
             "KD": {
-                "temperature": self.get_temperature(),
+                "temperature": self.current_temperature,
                 "logit_stand": cfg.EXPERIMENT.LOGIT_STAND,
             }
         }
@@ -406,6 +406,8 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
         if self.cfg.DISTILLER.TYPE == "DKD":
             self.extraKwargs["target"] = target
+
+        self.extraKwargs["temperature"] = self.current_temperature
 
         losses_dict = {
             "loss_ce": loss_ce,
