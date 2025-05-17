@@ -247,11 +247,13 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
         self.extraKwargs = {
             "DKD": {
+                "target": None,
                 "alpha": self.cfg.DKD.ALPHA,
                 "beta": self.cfg.DKD.BETA,
                 "temperature": self.get_temperature(),
                 "logit_stand": self.cfg.EXPERIMENT.LOGIT_STAND,
             },
+
             "KD": {
                 "temperature": self.get_temperature(),
                 "logit_stand": cfg.EXPERIMENT.LOGIT_STAND,
@@ -402,14 +404,14 @@ class DynamicTemperatureScheduler(BaseTrainer):
             loss_divergence=loss_divergence
         )
 
-        print(self.extraKwargs, "HERE")
+        if self.cfg.DISTILLER.TYPE == "DKD":
+            self.extraKwargs["target"] = target
 
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": min(epoch / self.cfg.DKD.WARMUP, 1.0) * kd_loss(
                 logits_student,
                 logits_teacher,
-                target,
                 **self.extraKwargs
             )
         }
