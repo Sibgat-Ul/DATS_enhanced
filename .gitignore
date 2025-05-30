@@ -26,3 +26,4 @@ wandb
 /minillm/results
 /minillm/checkpoints
 /minillm/processed_data
+.idea
