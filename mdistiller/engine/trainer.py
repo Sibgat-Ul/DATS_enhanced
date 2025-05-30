@@ -321,6 +321,9 @@ class DynamicTemperatureScheduler(BaseTrainer):
             "top5": AverageMeter(),
             # "temp": self.current_temperature,
             "temp": AverageMeter(),
+            "tsl": AverageMeter(),
+            "lbd": AverageMeter(),
+            "tbd": AverageMeter(),
         }
 
         num_iter = len(self.train_loader)
@@ -345,6 +348,9 @@ class DynamicTemperatureScheduler(BaseTrainer):
                 "test_acc": test_acc,
                 "test_loss": test_loss,
                 "temp": train_meters["temp"].avg,
+                "tsl": train_meters["tsl"].avg,
+                "ld_batch": train_meters["tsl"].val, # loss divergence per batch
+                "temp_batch": train_meters["temp"].val, # temperature per batch
                 "lr": lr
             }
         )
@@ -361,13 +367,13 @@ class DynamicTemperatureScheduler(BaseTrainer):
 
         student_state = {"model": self.distiller.module.student.state_dict()}
 
-        save_checkpoint(state, os.path.join(self.log_path, "latest"))
+        # save_checkpoint(state, os.path.join(self.log_path, "latest"))
 
-        save_checkpoint(
-            student_state, os.path.join(self.log_path, "student_latest")
-        )
+        # save_checkpoint(
+        #     student_state, os.path.join(self.log_path, "student_latest")
+        # )
 
-        if epoch % self.cfg.LOG.SAVE_CHECKPOINT_FREQ == 0:
+        if epoch % 50 == 0:
             save_checkpoint(
                 state, os.path.join(self.log_path, "epoch_{}".format(epoch))
             )
@@ -434,7 +440,7 @@ class DynamicTemperatureScheduler(BaseTrainer):
         train_meters["top1"].update(acc1[0], batch_size)
         train_meters["top5"].update(acc5[0], batch_size)
         train_meters["temp"].update(self.distiller.module.temperature)
-
+        train_meters["tsl"].update(loss_divergence)
         # print info
         msg = "Epoch: {}/{} | TSL: {:.2f}| Temp: {:.2f}| Time: {:.2f}| Loss: {:.2f}| Top-1: {:.2f}| Top-5: {:.2f}".format(
             epoch,
