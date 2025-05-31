@@ -437,7 +437,7 @@ if __name__ == "__main__":
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--curve_shape", type=float, default=1)
 
-    parser.add_argument("--validate_teacher", action="store_true")
+    parser.add_argument("--no_decay", action="store_true")
 
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
@@ -449,7 +449,11 @@ if __name__ == "__main__":
     cfg.SOLVER.BATCH_SIZE = args.batch_size
 
     if args.dataset == "cifar100":
-        cfg.SOLVER.LR_DECAY_STAGES = [int(args.epochs*0.625), int(args.epochs*0.75), int(args.epochs*0.875)]
+        if args.no_decay:
+            cfg.SOLVER.LR_DECAY_STAGES = []
+        else:
+            cfg.SOLVER.LR_DECAY_STAGES = [int(args.epochs*0.625), int(args.epochs*0.75), int(args.epochs*0.875)]
+        
 
     if args.use_scheduler:
         cfg.SOLVER.TRAINER = "scheduler"
