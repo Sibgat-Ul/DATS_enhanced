@@ -290,10 +290,7 @@ def main(cfg, resume, opts):
                 cfg.SOLVER.INIT_TEMPERATURE = 2
                 cfg.SOLVER.MAX_TEMPERATURE = 3
                 cfg.SOLVER.MIN_TEMPERATURE = 1
-            else:
-                cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
-                cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
+        
 
             cfg.SOLVER.TRAINER = "scheduler"
             cfg.DISTILLER.TYPE = "kd"
@@ -360,10 +357,6 @@ def main(cfg, resume, opts):
                 cfg.SOLVER.INIT_TEMPERATURE = 2
                 cfg.SOLVER.MAX_TEMPERATURE = 3
                 cfg.SOLVER.MIN_TEMPERATURE = 1
-            else:
-                cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
-                cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"
