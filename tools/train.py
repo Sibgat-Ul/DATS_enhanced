@@ -290,10 +290,6 @@ def main(cfg, resume, opts):
                 cfg.SOLVER.INIT_TEMPERATURE = 2
                 cfg.SOLVER.MAX_TEMPERATURE = 3
                 cfg.SOLVER.MIN_TEMPERATURE = 1
-            else:
-                cfg.SOLVER.INIT_TEMPERATURE = cfg.KD.TEMPERATURE * 2
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
-                cfg.SOLVER.MIN_TEMPERATURE = cfg.KD.TEMPERATURE
 
             cfg.SOLVER.TRAINER = "scheduler"
             cfg.DISTILLER.TYPE = "kd"
@@ -360,10 +356,6 @@ def main(cfg, resume, opts):
                 cfg.SOLVER.INIT_TEMPERATURE = 2
                 cfg.SOLVER.MAX_TEMPERATURE = 3
                 cfg.SOLVER.MIN_TEMPERATURE = 1
-            else:
-                cfg.SOLVER.INIT_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE * 2
-                cfg.SOLVER.MAX_TEMPERATURE = cfg.SOLVER.INIT_TEMPERATURE
-                cfg.SOLVER.MIN_TEMPERATURE = cfg[cfg.DISTILLER.TYPE].TEMPERATURE
 
             cfg.SOLVER.ADJUST_TEMPERATURE = args.adjust_temperature
             cfg.SOLVER.TRAINER = "scheduler"
@@ -430,7 +422,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=0.1)
 
     parser.add_argument("--logit_stand", action="store_true")
-    parser.add_argument("--base_temp", type=float, default=2)
+    parser.add_argument("--base_temp", type=float, default=2.0)
     parser.add_argument("--kd_weight", type=float, default=9)
 
     parser.add_argument("--reuse", action="store_true")
