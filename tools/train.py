@@ -463,7 +463,7 @@ if __name__ == "__main__":
 
     cfg.EXPERIMENT.LOGIT_STAND = args.logit_stand
 
-    if args.logit_stand and cfg.DISTILLER.TYPE in ['KD','DKD','MLKD']:
+    if cfg.DISTILLER.TYPE in ['KD','DKD','MLKD']:
         if cfg.DISTILLER.TYPE == 'KD':
             cfg.KD.LOSS.KD_WEIGHT = 9.0
             cfg.KD.TEMPERATURE = args.base_temp
