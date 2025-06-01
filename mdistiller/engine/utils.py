@@ -112,7 +112,7 @@ def log_msg(msg, mode="INFO"):
     return msg
 
 def adjust_learning_rate(epoch, cfg, optimizer):
-    if len(np.asarray(cfg.SOLVER.LR_DECAY_STAGES)) > 0:Add commentMore actions
+    if len(np.asarray(cfg.SOLVER.LR_DECAY_STAGES)) > 0:
         steps = np.sum(epoch > np.asarray(cfg.SOLVER.LR_DECAY_STAGES))
         if steps > 0:
             new_lr = cfg.SOLVER.LR * (cfg.SOLVER.LR_DECAY_RATE**steps)
