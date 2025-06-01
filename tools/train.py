@@ -47,7 +47,7 @@ def main(cfg, resume, opts):
 
     # cfg & loggers
     if not cfg.REUSE:
-        show_cfg(cfg)
+        # show_cfg(cfg)
         print(log_msg("\nTrainer: {}\n Distiller: {}".format(cfg.SOLVER.TRAINER, cfg.DISTILLER.TYPE), "INFO"))
 
     if cfg.DATASET.TYPE == "tiny_imagenet":
