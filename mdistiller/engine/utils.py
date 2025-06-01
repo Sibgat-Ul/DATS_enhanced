@@ -112,12 +112,13 @@ def log_msg(msg, mode="INFO"):
     return msg
 
 def adjust_learning_rate(epoch, cfg, optimizer):
-    steps = np.sum(epoch > np.asarray(cfg.SOLVER.LR_DECAY_STAGES))
-    if steps > 0:
-        new_lr = cfg.SOLVER.LR * (cfg.SOLVER.LR_DECAY_RATE**steps)
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = new_lr
-        return new_lr
+    if len(np.asarray(cfg.SOLVER.LR_DECAY_STAGES)) > 0:Add commentMore actions
+        steps = np.sum(epoch > np.asarray(cfg.SOLVER.LR_DECAY_STAGES))
+        if steps > 0:
+            new_lr = cfg.SOLVER.LR * (cfg.SOLVER.LR_DECAY_RATE**steps)
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = new_lr
+            return new_lr
     return cfg.SOLVER.LR
 
 def accuracy(output, target, topk=(1,5)):
