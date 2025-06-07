@@ -423,7 +423,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--logit_stand", action="store_true")
     parser.add_argument("--base_temp", type=float, default=2.0)
-    parser.add_argument("--kd_weight", type=float, default=9)
+    parser.add_argument("--kd_weight", type=float, default=0.9)
 
     parser.add_argument("--reuse", action="store_true")
     parser.add_argument("--wandb", action="store_true")
