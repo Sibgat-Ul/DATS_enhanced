@@ -465,7 +465,7 @@ if __name__ == "__main__":
 
     if cfg.DISTILLER.TYPE in ['KD','DKD','MLKD']:
         if cfg.DISTILLER.TYPE == 'KD':
-            cfg.KD.LOSS.KD_WEIGHT = 9.0
+            cfg.KD.LOSS.KD_WEIGHT = args.kd_weight
             cfg.KD.TEMPERATURE = args.base_temp
 
         elif cfg.DISTILLER.TYPE == 'DKD':
